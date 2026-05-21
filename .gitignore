@@ -1,0 +1,37 @@
+# Secrets - Anything that has API Keys, Tokens and(or) Credentials.
+.env
+.env.local
+.env.*.local
+# Python Virtual Environment 
+.venv/
+# Python bytecode + build artifacts
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/
+*.egg-info
+# Tooling caches 
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+# Datalake - Do not commit raw ingested data or logs
+# Ignore everything under bronze/silver/gold/logs, then un-ignore .gitkeep so folder skeleton stays tracked
+fintech_datalake/bronze/**
+fintech_datalake/silver/**
+fintech_datalake/gold/**
+fintech_datalake/logs/**
+!fintech_datalake/bronze/**/
+!fintech_datalake/silver/**/
+!fintech_datalake/gold/**/
+!fintech_datalake/logs/**/
+!fintech_datalake/bronze/**/.gitkeep
+!fintech_datalake/silver/**/.gitkeep
+!fintech_datalake/gold/**/.gitkeep
+!fintech_datalake/logs/**/.gitkeep
+# Claude Code Workspace
+.claude/
+# OS + Editor Cruft
+.DS_Store
+.idea/
+.vscode/
