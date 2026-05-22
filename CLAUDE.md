@@ -15,9 +15,29 @@ End-to-end FinTech data engineering portfolio project. Replicates a real product
 
 ## Reference Documents
 - `fintech_data_ecosystem.svg` — upstream/downstream actor diagram.
-- ADRs under `docs/adr/` (forthcoming) — append-only decision log in MADR format.
+- ADRs under `docs/adr/` — append-only decision log in MADR format. See [Decision Log](#decision-log) below.
 - Per-branch plan files at `~/.claude/plans/<branch>.md` — operational state (not in repo).
 - Auto-memory at `~/.claude/projects/<project-id>/memory/` — operational connection facts, role, preferences (not in repo).
+
+## Decision Log
+Architectural decisions are recorded as immutable [MADR-format](https://adr.github.io/madr/) ADRs under [`docs/adr/`](docs/adr/). A new ADR is written for every significant choice; reversals happen by writing a superseding ADR, never by editing history. Template at [`docs/adr/0000-template.md`](docs/adr/0000-template.md).
+
+Currently published:
+
+- [ADR-0001 — Record architecture decisions in MADR format](docs/adr/0001-record-architecture-decisions.md)
+- [ADR-0002 — Medallion layer ownership: Python / Databricks / DBT](docs/adr/0002-medallion-layer-ownership.md)
+- [ADR-0003 — Use `uv` for Python dependency management](docs/adr/0003-uv-for-python-dependency-management.md)
+- [ADR-0004 — Initialize the Python project in application mode, not package mode](docs/adr/0004-application-mode-not-package-mode.md)
+- [ADR-0005 — LEARNING MODE: the user types every line of project source code](docs/adr/0005-learning-mode-no-claude-generated-code.md)
+- [ADR-0006 — Use `.gitkeep` to commit empty data-lake directories](docs/adr/0006-gitkeep-for-empty-data-lake-directories.md)
+- [ADR-0007 — Bronze ingestion durability: atomic writes and JSONL audit logs](docs/adr/0007-bronze-ingestion-durability-atomic-writes-jsonl-logs.md)
+- [ADR-0008 — 12-factor secrets via `python-dotenv` and fail-fast env loading](docs/adr/0008-twelve-factor-secrets-via-dotenv.md)
+- [ADR-0009 — Alpha Vantage downgraded to cross-validation; FMP promoted as primary daily-price source](docs/adr/0009-alpha-vantage-downgrade-fmp-primary-prices.md)
+- [ADR-0010 — TICKERS swap (GOOG→GOOGL, BRK-B→PYPL) forced by FMP free-tier 85-ticker allowlist](docs/adr/0010-tickers-swap-fmp-allowlist.md)
+- [ADR-0011 — FMP fundamentals capped at 5 records per call; Silver handles partial history](docs/adr/0011-fmp-fundamentals-five-record-cap.md)
+- [ADR-0012 — Insider trades deferred to Phase 3 via SEC EDGAR Form 4](docs/adr/0012-insider-trades-phase-3-sec-edgar.md)
+- [ADR-0013 — Gold layer is a Kimball star schema: 6 facts + 3 dims + 2 aggregates](docs/adr/0013-gold-star-schema.md)
+- [ADR-0014 — Terraform for infrastructure as code (HCP Terraform Free + Databricks + GitHub providers)](docs/adr/0014-terraform-for-iac.md)
 
 ## Architecture (Authoritative)
 ```
@@ -114,7 +134,9 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 - **Alpha Vantage (1 endpoint):** `TIME_SERIES_DAILY` (compact, 100 days) — cross-validation feed for daily prices.
 - **FMP (10 endpoints):** `profile`, `historical-price-eod/full`, `historical-price-eod/dividend-adjusted`, `income-statement`, `balance-sheet-statement`, `cash-flow-statement`, `key-metrics`, `earnings`, `dividends`, `splits`. FMP is the primary source for daily prices + fundamentals + corporate actions.
 
-### Major architectural decisions (ADRs to be backfilled in `chore/adr-setup`)
+### Major architectural decisions
+*(See [Decision Log](#decision-log) for the per-decision ADRs with full reasoning.)*
+
 | Decision | Why |
 |---|---|
 | `uv` for Python deps + lockfile | Reproducibility; PEP 621-native; fast. Application mode, not library. |
