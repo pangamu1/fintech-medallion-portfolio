@@ -117,7 +117,7 @@ Prefer logic-only verification (AST inspection, file `grep`, syntax check) befor
 ### When unsure, ask — never invent
 If the user's intent or the API's behavior is unclear, use AskUserQuestion or have the user paste documentation/screenshots. NEVER fabricate API behavior, response shapes, rate limits, or tier policies. If docs aren't readable via WebFetch, have the user paste relevant sections.
 
-## Current Progress (last updated 2026-05-21)
+## Current Progress (last updated 2026-05-23)
 
 > Operational state (per-branch plan files, machine-local connection details) lives outside this document — see `~/.claude/plans/` and the project's auto-memory. This section is the high-level public-facing log only.
 
@@ -126,6 +126,9 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 - **Planning docs** (PR #2) — early planning artifacts added (later partially removed)
 - **Python ingestion scaffold** (PR #3, merged 2026-05-21) — full local ingestion pipeline for Alpha Vantage + FMP into Bronze JSON lake. ~280 lines of production-shaped Python (`config.py` + `utils.py` + `ingest_alpha_vantage.py` + `ingest_fmp.py`) with atomic Bronze writes, JSONL audit logging, `requests.Session` + retry adapter, throttle/empty-list detection, rate-limit pacing, typed endpoint catalogs via `TypedDict`.
 - **Handoff doc removal** (PR #4, merged 2026-05-21) — moved `fintech_pipeline_handoff.md` to gitignored `.claude/notes/` (still accessible to Claude, hidden from portfolio readers).
+- **CLAUDE.md purification** (PR #5, merged 2026-05-21) — tightened CLAUDE.md prose, relocated operational/connection facts to per-branch plan files + auto-memory, refreshed the Layer ownership table to reflect DLT-based Silver, and added the meta-file exception to LEARNING MODE.
+- **ADR practice + retroactive ADRs 0001–0014** (PR #6, merged 2026-05-22) — introduced [MADR](https://adr.github.io/madr/) decision-log convention under `docs/adr/`, including template `0000-template.md` and 14 backfilled ADRs covering every architecturally significant choice through `feat/ingest-scaffold` (medallion ownership, `uv`, application mode, LEARNING MODE, `.gitkeep`, atomic writes + JSONL logs, dotenv secrets, AV downgrade, TICKERS swap, FMP 5-record cap, EDGAR-deferred insiders, Gold star schema, Terraform for IaC).
+- **Decision Log section in CLAUDE.md** (PR #7, merged 2026-05-22) — added `## Decision Log` section + per-ADR links from CLAUDE.md so readers entering at the repo root discover the ADR index without spelunking `docs/adr/`.
 
 ### Final TICKERS universe (10)
 `AAPL`, `MSFT`, `AMZN`, `META`, `TSLA`, `JPM`, `JNJ`, `NVDA`, `GOOGL`, `PYPL` — chosen across sectors to exercise schema evolution, SCD2 events (META 2018 sector reclassification, JNJ→Kenvue 2023 spinoff, NVDA 2024 split), bank-vs-tech schema enforcement, and no-dividend null handling.
@@ -170,10 +173,8 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 - GitHub: unlimited Actions minutes for public repos
 
 ### Next phase
-1. **`chore/adr-setup`** — Create `docs/adr/`, backfill ~13 ADRs in MADR format covering decisions from `feat/ingest-scaffold`.
-2. **`feat/terraform-bootstrap`** — HCP Terraform Free + `databricks/databricks` provider for UC catalogs, schemas, volumes, DLT pipeline scaffolds + GitHub provider for branch protection + Actions secrets.
-3. **`feat/bronze-databricks`** — Upload local Bronze JSONs to Databricks Unity Catalog Volume; `COPY INTO` Delta Bronze tables with schema evolution + constraint enforcement.
-4. **`feat/silver-dlt`** — DLT pipelines for CDC + SCD2 via `dlt.create_auto_cdc_flow(stored_as_scd_type=2)`; `@dlt.expect_*` for data quality.
-5. **`feat/gold-dbt`** — dbt models for the 11 Gold tables; tests + docs.
-6. **`feat/ci-cd`** — GitHub Actions for dbt + lint + docs deploy to GitHub Pages.
-7. **Phase 3 (later):** `feat/sec-edgar-insiders` — recover `fact_insider_trade` via SEC EDGAR Form 4.
+1. **`feat/bronze-databricks`** — Upload local Bronze JSONs to Databricks Unity Catalog Volume; `COPY INTO` Delta Bronze tables with schema evolution + constraint enforcement.
+2. **`feat/silver-dlt`** — DLT pipelines for CDC + SCD2 via `dlt.create_auto_cdc_flow(stored_as_scd_type=2)`; `@dlt.expect_*` for data quality.
+3. **`feat/gold-dbt`** — dbt models for the 11 Gold tables; tests + docs.
+4. **`feat/ci-cd`** — GitHub Actions for dbt + lint + docs deploy to GitHub Pages.
+5. **Phase 3 (later):** `feat/sec-edgar-insiders` — recover `fact_insider_trade` via SEC EDGAR Form 4.
