@@ -1,0 +1,6 @@
+databricks_host  = "https://dbc-xxxxxxxx-xxxx.cloud.databricks.com"
+databricks_token = "<your-databricks-pat>"
+
+github_owner = "<your-github-username-or-org>"
+github_token = "<your-github-pat>"
+github_repo  = "fintech-medallion-portfolio"
