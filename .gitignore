@@ -35,3 +35,9 @@ fintech_datalake/logs/**
 .DS_Store
 .idea/
 .vscode/
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
