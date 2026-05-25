@@ -39,6 +39,7 @@ Currently published:
 - [ADR-0013 — Gold layer is a Kimball star schema: 6 facts + 3 dims + 2 aggregates](docs/adr/0013-gold-star-schema.md)
 - [ADR-0014 — Terraform for infrastructure as code (HCP Terraform Free + Databricks + GitHub providers)](docs/adr/0014-terraform-for-iac.md)
 - [ADR-0015 — dbt Cloud Developer-plan API is usable; dbt Cloud TF management deferred to dedicated branch](docs/adr/0015-dbt-cloud-developer-api-usable.md)
+- [ADR-0016 — Databricks Free Edition Default Storage; UC catalogs managed via UI + TF import, not TF create](docs/adr/0016-free-edition-default-storage-workaround.md)
 
 ## Architecture (Authoritative)
 ```
