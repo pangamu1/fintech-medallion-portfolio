@@ -40,6 +40,7 @@ Currently published:
 - [ADR-0014 — Terraform for infrastructure as code (HCP Terraform Free + Databricks + GitHub providers)](docs/adr/0014-terraform-for-iac.md)
 - [ADR-0015 — dbt Cloud Developer-plan API is usable; dbt Cloud TF management deferred to dedicated branch](docs/adr/0015-dbt-cloud-developer-api-usable.md)
 - [ADR-0016 — Databricks Free Edition Default Storage; UC catalogs managed via UI + TF import, not TF create](docs/adr/0016-free-edition-default-storage-workaround.md)
+- [ADR-0017 — Databricks Free Edition: `account admins` not a resolvable principal; UC grants pinned to workspace owner email](docs/adr/0017-free-edition-account-admins-principal-unavailable.md)
 
 ## Architecture (Authoritative)
 ```
