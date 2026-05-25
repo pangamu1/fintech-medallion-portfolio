@@ -38,6 +38,7 @@ Currently published:
 - [ADR-0012 — Insider trades deferred to Phase 3 via SEC EDGAR Form 4](docs/adr/0012-insider-trades-phase-3-sec-edgar.md)
 - [ADR-0013 — Gold layer is a Kimball star schema: 6 facts + 3 dims + 2 aggregates](docs/adr/0013-gold-star-schema.md)
 - [ADR-0014 — Terraform for infrastructure as code (HCP Terraform Free + Databricks + GitHub providers)](docs/adr/0014-terraform-for-iac.md)
+- [ADR-0015 — dbt Cloud Developer-plan API is usable; dbt Cloud TF management deferred to dedicated branch](docs/adr/0015-dbt-cloud-developer-api-usable.md)
 
 ## Architecture (Authoritative)
 ```
