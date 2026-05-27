@@ -41,6 +41,7 @@ Currently published:
 - [ADR-0015 — dbt Cloud Developer-plan API is usable; dbt Cloud TF management deferred to dedicated branch](docs/adr/0015-dbt-cloud-developer-api-usable.md)
 - [ADR-0016 — Databricks Free Edition Default Storage; UC catalogs managed via UI + TF import, not TF create](docs/adr/0016-free-edition-default-storage-workaround.md)
 - [ADR-0017 — Databricks Free Edition: `account admins` not a resolvable principal; UC grants pinned to workspace owner email](docs/adr/0017-free-edition-account-admins-principal-unavailable.md)
+- [ADR-0018 — Bronze runs on PySpark Autoloader; supersedes `COPY INTO` for the Bronze layer](docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md)
 
 ## Architecture (Authoritative)
 ```
@@ -52,7 +53,7 @@ Python ingest  →  Local JSON Lake  →  Databricks Free Edition  →  DBT Clou
 | Layer | Owner | Logic |
 |---|---|---|
 | Ingestion | Python scripts (`fintech_datalake/scripts/`) | Hit Alpha Vantage + FMP, land JSON in local lake |
-| Bronze | Databricks (`COPY INTO` + Delta) | Raw, append-only, schema evolution + enforcement |
+| Bronze | Databricks (PySpark Autoloader + Delta) | Raw, append-only, schema evolution via `cloudFiles.schemaEvolutionMode = "rescue"` (per [ADR-0018](docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md)) |
 | Silver | Databricks DLT pipelines (`@dlt.table`, `dlt.create_auto_cdc_flow`) | Cleansing, CDC, SCD2 history tables, late-arriving fix, DLT Expectations for data quality |
 | Gold | DBT Cloud (Developer free) | Star schema dims + facts, tests, lineage docs |
 
@@ -179,7 +180,7 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 - GitHub: unlimited Actions minutes for public repos
 
 ### Next phase
-1. **`feat/bronze-databricks`** — Upload local Bronze JSONs to Databricks Unity Catalog Volume; `COPY INTO` Delta Bronze tables with schema evolution + constraint enforcement.
+1. **`feat/bronze-databricks`** — Upload local Bronze JSONs to Databricks Unity Catalog Volume; **PySpark Autoloader** (`cloudFiles` + `.trigger(availableNow=True)`) into Delta Bronze tables with rescue-mode schema evolution (per [ADR-0018](docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md)).
 2. **`feat/silver-dlt`** — DLT pipelines for CDC + SCD2 via `dlt.create_auto_cdc_flow(stored_as_scd_type=2)`; `@dlt.expect_*` for data quality.
 3. **`feat/gold-dbt`** — dbt models for the 11 Gold tables; tests + docs.
 4. **`feat/ci-cd`** — GitHub Actions for dbt + lint + docs deploy to GitHub Pages.

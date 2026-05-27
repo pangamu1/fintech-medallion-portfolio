@@ -1,6 +1,6 @@
 # 0002 — Medallion layer ownership: Python / Databricks / DBT
 
-- **Status:** Accepted
+- **Status:** Accepted. Bronze row partially superseded by [ADR-0018](0018-bronze-pyspark-autoloader-supersedes-copy-into.md) (2026-05-26) — Bronze engine changed from `COPY INTO` + Delta to PySpark Autoloader + Delta. Silver (DLT) and Gold (dbt) ownership rows unchanged.
 - **Date:** 2026-05-22
 - **Deciders:** project owner
 
