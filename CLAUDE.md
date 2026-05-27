@@ -41,6 +41,7 @@ Currently published:
 - [ADR-0015 — dbt Cloud Developer-plan API is usable; dbt Cloud TF management deferred to dedicated branch](docs/adr/0015-dbt-cloud-developer-api-usable.md)
 - [ADR-0016 — Databricks Free Edition Default Storage; UC catalogs managed via UI + TF import, not TF create](docs/adr/0016-free-edition-default-storage-workaround.md)
 - [ADR-0017 — Databricks Free Edition: `account admins` not a resolvable principal; UC grants pinned to workspace owner email](docs/adr/0017-free-edition-account-admins-principal-unavailable.md)
+- [ADR-0018 — Bronze runs on PySpark Autoloader; supersedes `COPY INTO` for the Bronze layer](docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md)
 
 ## Architecture (Authoritative)
 ```
@@ -52,7 +53,7 @@ Python ingest  →  Local JSON Lake  →  Databricks Free Edition  →  DBT Clou
 | Layer | Owner | Logic |
 |---|---|---|
 | Ingestion | Python scripts (`fintech_datalake/scripts/`) | Hit Alpha Vantage + FMP, land JSON in local lake |
-| Bronze | Databricks (`COPY INTO` + Delta) | Raw, append-only, schema evolution + enforcement |
+| Bronze | Databricks (PySpark Autoloader + Delta) | Raw, append-only, schema evolution via `cloudFiles.schemaEvolutionMode = "rescue"` (per [ADR-0018](docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md)) |
 | Silver | Databricks DLT pipelines (`@dlt.table`, `dlt.create_auto_cdc_flow`) | Cleansing, CDC, SCD2 history tables, late-arriving fix, DLT Expectations for data quality |
 | Gold | DBT Cloud (Developer free) | Star schema dims + facts, tests, lineage docs |
 
@@ -120,7 +121,7 @@ Prefer logic-only verification (AST inspection, file `grep`, syntax check) befor
 ### When unsure, ask — never invent
 If the user's intent or the API's behavior is unclear, use AskUserQuestion or have the user paste documentation/screenshots. NEVER fabricate API behavior, response shapes, rate limits, or tier policies. If docs aren't readable via WebFetch, have the user paste relevant sections.
 
-## Current Progress (last updated 2026-05-23)
+## Current Progress (last updated 2026-05-26)
 
 > Operational state (per-branch plan files, machine-local connection details) lives outside this document — see `~/.claude/plans/` and the project's auto-memory. This section is the high-level public-facing log only.
 
@@ -132,6 +133,9 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 - **CLAUDE.md purification** (PR #5, merged 2026-05-21) — tightened CLAUDE.md prose, relocated operational/connection facts to per-branch plan files + auto-memory, refreshed the Layer ownership table to reflect DLT-based Silver, and added the meta-file exception to LEARNING MODE.
 - **ADR practice + retroactive ADRs 0001–0014** (PR #6, merged 2026-05-22) — introduced [MADR](https://adr.github.io/madr/) decision-log convention under `docs/adr/`, including template `0000-template.md` and 14 backfilled ADRs covering every architecturally significant choice through `feat/ingest-scaffold` (medallion ownership, `uv`, application mode, LEARNING MODE, `.gitkeep`, atomic writes + JSONL logs, dotenv secrets, AV downgrade, TICKERS swap, FMP 5-record cap, EDGAR-deferred insiders, Gold star schema, Terraform for IaC).
 - **Decision Log section in CLAUDE.md** (PR #7, merged 2026-05-22) — added `## Decision Log` section + per-ADR links from CLAUDE.md so readers entering at the repo root discover the ADR index without spelunking `docs/adr/`.
+- **Terraform bootstrap** (PR #8, merged 2026-05-25) — HCP Terraform Free workspace + GitHub OIDC + Databricks + GitHub providers wired end-to-end. 21 resources under management: UC catalogs `bronze` + `silver` + `ingestion`, schemas `bronze.alpha_vantage` + `bronze.fmp`, volumes `ingestion.alpha_vantage.raw_jsons` + `ingestion.fmp.raw_jsons`, SQL Warehouse `Serverless Starter Warehouse` imported drift-free, GitHub branch protection on `main`. ADR-0014 (TF for IaC), ADR-0015 (dbt Cloud Developer API usable; TF deferred), ADR-0016 (Default Storage workaround), ADR-0017 (account-admins principal unavailable) all published in this PR.
+- **TF fix-forward: catalog storage_root drift** (PR #9, merged 2026-05-25) — `lifecycle.ignore_changes = [storage_root]` on UC catalogs; Free Edition Default Storage rewrites the field server-side on every apply otherwise.
+- **TF fix-forward: UC grants principal** (PR #10, merged 2026-05-25) — pinned grants principal to workspace owner email; `account admins` is not a resolvable principal on Free Edition (ADR-0017).
 
 ### Final TICKERS universe (10)
 `AAPL`, `MSFT`, `AMZN`, `META`, `TSLA`, `JPM`, `JNJ`, `NVDA`, `GOOGL`, `PYPL` — chosen across sectors to exercise schema evolution, SCD2 events (META 2018 sector reclassification, JNJ→Kenvue 2023 spinoff, NVDA 2024 split), bank-vs-tech schema enforcement, and no-dividend null handling.
@@ -176,7 +180,7 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 - GitHub: unlimited Actions minutes for public repos
 
 ### Next phase
-1. **`feat/bronze-databricks`** — Upload local Bronze JSONs to Databricks Unity Catalog Volume; `COPY INTO` Delta Bronze tables with schema evolution + constraint enforcement.
+1. **`feat/bronze-databricks`** — Upload local Bronze JSONs to Databricks Unity Catalog Volume; **PySpark Autoloader** (`cloudFiles` + `.trigger(availableNow=True)`) into Delta Bronze tables with rescue-mode schema evolution (per [ADR-0018](docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md)).
 2. **`feat/silver-dlt`** — DLT pipelines for CDC + SCD2 via `dlt.create_auto_cdc_flow(stored_as_scd_type=2)`; `@dlt.expect_*` for data quality.
 3. **`feat/gold-dbt`** — dbt models for the 11 Gold tables; tests + docs.
 4. **`feat/ci-cd`** — GitHub Actions for dbt + lint + docs deploy to GitHub Pages.

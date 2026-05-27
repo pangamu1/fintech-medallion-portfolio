@@ -5,6 +5,7 @@ description = "FinTech market data ingestion (Alpha Vantage + FMP) -> local Bron
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "databricks-sdk>=0.111.0",
     "python-dotenv>=1.2.2",
     "requests>=2.34.2",
 ]
