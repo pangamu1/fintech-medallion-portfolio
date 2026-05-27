@@ -30,7 +30,7 @@ resource "databricks_job" "bronze_autoloader" {
   environment {
     environment_key = "default"
     spec {
-      environment_version = "1"
+      environment_version = "5"
     }
   }
 
