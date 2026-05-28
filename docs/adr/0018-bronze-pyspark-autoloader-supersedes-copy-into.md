@@ -1,6 +1,6 @@
 # 0018 — Bronze runs on PySpark Autoloader; supersedes `COPY INTO` for the Bronze layer
 
-- **Status:** Accepted
+- **Status:** Accepted; cardinality row amended by [ADR-0019](0019-alpha-vantage-deferred-from-bronze.md) on 2026-05-27 (Alpha Vantage deferred from Bronze → 10 streams, FMP only).
 - **Date:** 2026-05-26
 - **Deciders:** project owner
 - **Supersedes:** the Bronze row of [ADR-0002](0002-medallion-layer-ownership.md). ADR-0002's Silver (DLT) and Gold (dbt) ownership rows are untouched.
@@ -31,7 +31,7 @@ The Bronze layer is implemented in **PySpark using Databricks Autoloader (`cloud
 | Schema evolution mode | `cloudFiles.schemaEvolutionMode = "rescue"` — schema is locked at first inference; unexpected fields land in a `_rescued_data` JSON-string column |
 | Column type inference | `cloudFiles.inferColumnTypes = "true"` — Autoloader defaults this to **false** (all columns inferred as `string`), opposite of batch `spark.read.json` defaults. Must be enabled explicitly for `data` to parse as `array<struct<…>>` rather than a JSON-encoded string |
 | JSON parse option | `multiLine = "true"` — mandatory; producer writes one JSON document per file, not NDJSON |
-| Stream cardinality | One stream per `(source, endpoint)` — 11 streams total (1 Alpha Vantage + 10 FMP endpoints per [ADR-0009](0009-alpha-vantage-downgrade-fmp-primary-prices.md)) |
+| Stream cardinality | One stream per `(source, endpoint)` — originally 11 streams (1 Alpha Vantage + 10 FMP). **Amended by [ADR-0019](0019-alpha-vantage-deferred-from-bronze.md) on 2026-05-27 to 10 streams (FMP only)**; Alpha Vantage's `TIME_SERIES_DAILY` payload shape (date-keyed struct, not array) does not fit the `explode(data)` pattern and is consumed at Silver instead |
 | Row granularity | `explode(col("data"))` between read and write — one Bronze row per actual API record; envelope columns flattened onto each row; raw `data` array column dropped (**Path B**) |
 | Sink | Delta table `bronze.<source>.<endpoint>`, append mode |
 | Checkpoint location | `/Volumes/ingestion/<source>/raw_jsons/_checkpoints/<endpoint>/` — nested *inside* the existing `raw_jsons` volume. UC's path grammar requires `/Volumes/<cat>/<sch>/<volume>/…` where `<volume>` must be a registered volume; a sibling-to-volume `_checkpoints` dir is rejected as `UC_VOLUME_NOT_FOUND`. Leading `_` still distinguishes ops state from raw inputs. See Amendments §2026-05-27 |

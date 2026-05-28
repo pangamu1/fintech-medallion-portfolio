@@ -5,17 +5,16 @@
 
 locals {
   bronze_jobs = {
-    "alpha_vantage.time_series_daily" = { source = "alpha_vantage", endpoint = "time_series_daily" }
-    "fmp.balance_sheet"               = { source = "fmp", endpoint = "balance_sheet" }
-    "fmp.cash_flow"                   = { source = "fmp", endpoint = "cash_flow" }
-    "fmp.dividends"                   = { source = "fmp", endpoint = "dividends" }
-    "fmp.earnings"                    = { source = "fmp", endpoint = "earnings" }
-    "fmp.historical_price_adjusted"   = { source = "fmp", endpoint = "historical_price_adjusted" }
-    "fmp.historical_price_full"       = { source = "fmp", endpoint = "historical_price_full" }
-    "fmp.income_statement"            = { source = "fmp", endpoint = "income_statement" }
-    "fmp.key_metrics"                 = { source = "fmp", endpoint = "key_metrics" }
-    "fmp.profile"                     = { source = "fmp", endpoint = "profile" }
-    "fmp.splits"                      = { source = "fmp", endpoint = "splits" }
+    "fmp.balance_sheet"             = { source = "fmp", endpoint = "balance_sheet" }
+    "fmp.cash_flow"                 = { source = "fmp", endpoint = "cash_flow" }
+    "fmp.dividends"                 = { source = "fmp", endpoint = "dividends" }
+    "fmp.earnings"                  = { source = "fmp", endpoint = "earnings" }
+    "fmp.historical_price_adjusted" = { source = "fmp", endpoint = "historical_price_adjusted" }
+    "fmp.historical_price_full"     = { source = "fmp", endpoint = "historical_price_full" }
+    "fmp.income_statement"          = { source = "fmp", endpoint = "income_statement" }
+    "fmp.key_metrics"               = { source = "fmp", endpoint = "key_metrics" }
+    "fmp.profile"                   = { source = "fmp", endpoint = "profile" }
+    "fmp.splits"                    = { source = "fmp", endpoint = "splits" }
   }
 }
 resource "databricks_workspace_file" "bronze_autoloader_run_py" {
