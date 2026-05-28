@@ -26,6 +26,32 @@ Accept the 5-record cap as a hard constraint of the free-tier architecture. Inge
 - **Negative / cost:** First several months of operation have thin historical depth on fundamentals. BI dashboards that depend on YoY fundamentals comparisons need a "data range: from YYYY-MM-DD" annotation. Silver-layer tests can't assert against pre-day-1 fundamental records.
 - **Follow-ups required:** Silver DLT pipelines (`feat/silver-dlt`) must use forward-only CDC keyed by `(ticker, period_end_date)`; new appearances of a fundamental row are inserts, not updates. Gold facts (`fact_financial_statement`, `fact_key_metric`) document the partial-history range in their `dbt docs` description. Phase 3 SEC EDGAR ingestion ([ADR-0012](0012-insider-trades-phase-3-sec-edgar.md)) can optionally backfill historical fundamentals from XBRL filings.
 
+## Amendments
+
+### 2026-05-28 — CP9.b observed exceptions to the 5-record cap
+
+The CP9.b full-scale ingestion run (10 tickers × all FMP endpoints) produced Bronze row counts that contradict the cap for three of the seven endpoints originally listed in Context:
+
+| Endpoint | Original ADR claim | CP9.b observed Bronze rows (10 tickers) | Capped? |
+|---|---|---|---|
+| `income_statement` | 5 / call | 50 (10 × 5) | ✓ yes |
+| `balance_sheet` | 5 / call | 50 | ✓ yes |
+| `cash_flow` | 5 / call | 50 | ✓ yes |
+| `key_metrics` | 5 / call | 50 | ✓ yes |
+| `earnings` | 5 / call | **1171** (~117/ticker on average) | ✗ **no cap** |
+| `dividends` | 5 / call | **653** (JNJ 226, JPM 171, AAPL 91, MSFT 90, NVDA 54, GOOGL/META 9, PYPL 3; TSLA + AMZN absent — genuine no-dividend) | ✗ **no cap** |
+| `splits` | 5 / call | **39** (8 tickers with splits; NVDA, AAPL have multiple historical splits each) | ✗ **no cap** |
+
+The Decision and Consequences sections above remain correct **for the four statement/metric endpoints** (`income_statement`, `balance_sheet`, `cash_flow`, `key_metrics`), where the 5-record cap is real and Silver's forward-accreting SCD2 logic is the right accommodation.
+
+For `earnings`, `dividends`, `splits`, the cap claim was wrong. These three endpoints return **full available history** on the FMP free tier — likely because they are smaller per-record payloads and FMP gates depth on payload weight rather than uniformly across all "fundamentals" endpoints. Silver implications:
+
+- **`earnings`** and **`dividends`** can populate `fact_earnings_event` and `fact_dividend_event` (per [ADR-0013](0013-gold-star-schema.md)) with full history out of the box; no partial-history annotation needed.
+- **`splits`** populates `fact_split_event` with full history, including the SCD2-relevant NVDA 2024 split that motivated the test universe ([ADR-0010](0010-tickers-swap-fmp-allowlist.md)).
+- The forward-only CDC keyed by `(ticker, period_end_date)` remains correct for the four still-capped endpoints; `earnings`/`dividends`/`splits` can use natural-key CDC (`(ticker, event_date)` or equivalent) without depth concerns.
+
+No change to the underlying decision — the architecture already stores whatever the API returns. This amendment narrows the scope of the "partial history" caveat from "all 7 fundamentals endpoints" to "the 4 statement/metric endpoints only."
+
 ## References
 
 - FMP free-tier docs — https://site.financialmodelingprep.com/developer/docs/stable (5-record cap visible per endpoint)
