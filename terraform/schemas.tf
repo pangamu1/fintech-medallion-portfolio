@@ -22,10 +22,16 @@ resource "databricks_schema" "bronze_fmp" {
   comment      = "Delta tables produced by COPY INTO from ingestion.fmp.raw_jsons."
 }
 
-resource "databricks_schema" "silver_curated" {
+resource "databricks_schema" "silver_fmp" {
   catalog_name = databricks_catalog.silver.name
-  name         = "curated"
-  comment      = "DLT outputs: cleansed + CDC + SCD2 history tables."
+  name         = "fmp"
+  comment      = "DLT outputs from FMP Bronze: cleansed + CDC + company_scd2 (SCD2) + price/fundamental/event tables."
+}
+
+resource "databricks_schema" "silver_alpha_vantage" {
+  catalog_name = databricks_catalog.silver.name
+  name         = "alpha_vantage"
+  comment      = "DLT output: pivoted Alpha Vantage daily prices; cross-validation feed per ADR-0019."
 }
 
 resource "databricks_schema" "gold_marts" {
