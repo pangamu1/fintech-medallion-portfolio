@@ -9,7 +9,7 @@ resource "databricks_catalog" "ingestion" {
 
 resource "databricks_catalog" "bronze" {
   name    = "bronze"
-  comment = "Delta tables produced by COPY INTO from ingestion volumes. Append-only, schema-evolved."
+  comment = "Delta tables produced by PySpark Autoloader from ingestion volumes. Append-only, rescue-mode schema preservation (per ADR-0018)."
 
   lifecycle {
     ignore_changes = [storage_root]
