@@ -24,8 +24,3 @@ variable "github_repo" {
   description = "GitHub repository name"
   type        = string
 }
-
-variable "silver_scaffold_notebook_path" {
-  description = "Databricks path to the silver scaffold notebook"
-  type        = string
-}
