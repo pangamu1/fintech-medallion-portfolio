@@ -86,6 +86,20 @@ The CP7 Autoloader probe surfaced three implementation details that diverged fro
 
 3. **No explicit `CREATE TABLE` DDL.** The `feat/bronze-databricks` plan file's CP1 locked "explicit `CREATE TABLE` per Bronze table." The actual implementation uses `.toTable(table)` on the write stream, which atomically creates the table from the streaming DataFrame's schema on first write. Explicit DDL would risk drift between hand-written column lists and Autoloader's inferred schema; rescue mode already handles evolution at the `_rescued_data` level rather than at the table-schema level. The CP1 decision is treated as reversed by this ADR's implementation.
 
+### 2026-05-28 — CP9.c rescue-mode + file-rewrite verifications
+
+The CP9.c schema-evolution probe (synthetic `_probe_field` injected into one AAPL `fmp.profile` JSON, file uploaded, job re-run) produced two findings that confirm and extend the rescue-mode behavior described above.
+
+4. **Rescue captures the full source-JSON path, not just `{field: value}`.** When an unknown field appears, `_rescued_data` contains a JSON string reconstructing the entire path from the file root down to the unknown field, plus Autoloader's own `_file_path` bookkeeping. The probe — `_probe_field` injected at `.data[0]._probe_field` in the source file — surfaced in Bronze as:
+
+   ```json
+   {"data":[{"_probe_field":"rescue_test_2026_05_28"}],"_file_path":"/Volumes/ingestion/fmp/raw_jsons/profile/AAPL_20260528.json"}
+   ```
+
+   Not `{"_probe_field":"rescue_test_2026_05_28"}`. Schema width stayed at 44 columns (no new column added), confirming rescue mode does not evolve the table schema. Implication for Silver: any DLT pipeline that recovers rescued fields will need `from_json(_rescued_data, schema)` *plus* path navigation (`.data[0].<field>`) — not a flat key lookup. Worth surfacing in `feat/silver-dlt` design.
+
+5. **`cloudFiles.allowOverwrites = false` verified.** The Consequences section above flagged same-path re-upload behavior "for CP10 verification." CP9.c proved it incidentally: an existing `AAPL_20260521.json` was re-uploaded to UC via the SDK Files API with `overwrite=True`, alongside the new `AAPL_20260528.json`. Post-job row count went 10 → 11 (the new file), not 12. Autoloader correctly skipped the re-uploaded existing path. Formal CP10 probe therefore unnecessary; the `_20260521` overwrite served as the same-path-re-upload test.
+
 ## References
 
 - [ADR-0002](0002-medallion-layer-ownership.md) — original Bronze ownership; partially superseded by this ADR.

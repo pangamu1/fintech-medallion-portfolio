@@ -122,7 +122,7 @@ Prefer logic-only verification (AST inspection, file `grep`, syntax check) befor
 ### When unsure, ask — never invent
 If the user's intent or the API's behavior is unclear, use AskUserQuestion or have the user paste documentation/screenshots. NEVER fabricate API behavior, response shapes, rate limits, or tier policies. If docs aren't readable via WebFetch, have the user paste relevant sections.
 
-## Current Progress (last updated 2026-05-26)
+## Current Progress (last updated 2026-05-28)
 
 > Operational state (per-branch plan files, machine-local connection details) lives outside this document — see `~/.claude/plans/` and the project's auto-memory. This section is the high-level public-facing log only.
 
@@ -137,13 +137,29 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 - **Terraform bootstrap** (PR #8, merged 2026-05-25) — HCP Terraform Free workspace + GitHub OIDC + Databricks + GitHub providers wired end-to-end. 21 resources under management: UC catalogs `bronze` + `silver` + `ingestion`, schemas `bronze.alpha_vantage` + `bronze.fmp`, volumes `ingestion.alpha_vantage.raw_jsons` + `ingestion.fmp.raw_jsons`, SQL Warehouse `Serverless Starter Warehouse` imported drift-free, GitHub branch protection on `main`. ADR-0014 (TF for IaC), ADR-0015 (dbt Cloud Developer API usable; TF deferred), ADR-0016 (Default Storage workaround), ADR-0017 (account-admins principal unavailable) all published in this PR.
 - **TF fix-forward: catalog storage_root drift** (PR #9, merged 2026-05-25) — `lifecycle.ignore_changes = [storage_root]` on UC catalogs; Free Edition Default Storage rewrites the field server-side on every apply otherwise.
 - **TF fix-forward: UC grants principal** (PR #10, merged 2026-05-25) — pinned grants principal to workspace owner email; `account admins` is not a resolvable principal on Free Edition (ADR-0017).
+- **Bronze on Databricks** (PR #11, merged 2026-05-27) — local Bronze JSONs uploaded to UC volumes (`databricks-sdk` Files API; ~108 files across 10 tickers × 11 endpoints); PySpark Autoloader (`cloudFiles` + `.trigger(availableNow=True)`) wired as 11 `databricks_job` × `for_each` in TF, with rescue-mode schema evolution. Includes uploader script, Autoloader `run.py`, ADR-0018 establishing Autoloader as the Bronze engine (supersedes COPY INTO from ADR-0002).
+- **TF fix-forward: Autoloader environment_version** (PR #12, merged 2026-05-27) — pinned `databricks_job.environment.spec.environment_version` to `"5"`; Free Edition rejects the provider docs' example `"1"` ("Standard v1 (Unsupported)") and only supports v4/v5 for `spark_python_task`.
+- **Defer Alpha Vantage from Bronze** (PR #13, merged 2026-05-28) — removed the AV Autoloader job; AV's `TIME_SERIES_DAILY` response uses a date-keyed STRUCT for `data`, incompatible with the FMP-array `explode(data)` pattern. Bronze now runs 10 streams (FMP only); AV JSONs continue to land in UC and will be consumed at Silver directly (ADR-0019).
 
 ### Final TICKERS universe (10)
 `AAPL`, `MSFT`, `AMZN`, `META`, `TSLA`, `JPM`, `JNJ`, `NVDA`, `GOOGL`, `PYPL` — chosen across sectors to exercise schema evolution, SCD2 events (META 2018 sector reclassification, JNJ→Kenvue 2023 spinoff, NVDA 2024 split), bank-vs-tech schema enforcement, and no-dividend null handling.
 
 ### Final endpoint catalog
-- **Alpha Vantage (1 endpoint):** `TIME_SERIES_DAILY` (compact, 100 days) — cross-validation feed for daily prices.
-- **FMP (10 endpoints):** `profile`, `historical-price-eod/full`, `historical-price-eod/dividend-adjusted`, `income-statement`, `balance-sheet-statement`, `cash-flow-statement`, `key-metrics`, `earnings`, `dividends`, `splits`. FMP is the primary source for daily prices + fundamentals + corporate actions.
+
+Endpoint names below are the canonical **disk + Bronze table** form (matches `FMP_ENDPOINTS[*].name` in [`fintech_datalake/scripts/config.py`](fintech_datalake/scripts/config.py) and Bronze table FQNs `bronze.fmp.<name>`). The API URL path is shown in parentheses where it differs.
+
+- **Alpha Vantage (1 endpoint):** `time_series_daily` (URL: `?function=TIME_SERIES_DAILY`, compact = 100 days) — cross-validation feed for daily prices. Deferred from Bronze per [ADR-0019](docs/adr/0019-alpha-vantage-deferred-from-bronze.md); Silver consumes directly.
+- **FMP (10 endpoints, all in Bronze):**
+  - `profile` — no allowlist; company snapshot
+  - `historical_price_full` (URL: `historical-price-eod/full`) — raw OHLCV
+  - `historical_price_adjusted` (URL: `historical-price-eod/dividend-adjusted`) — split/dividend-adjusted OHLCV
+  - `income_statement` (URL: `income-statement`) — capped at 5 records/call (see ADR-0011)
+  - `balance_sheet` (URL: `balance-sheet-statement`) — capped at 5/call
+  - `cash_flow` (URL: `cash-flow-statement`) — capped at 5/call
+  - `key_metrics` (URL: `key-metrics`) — capped at 5/call, annual cadence only
+  - `earnings`, `dividends`, `splits` — **full history** (ADR-0011 amendment 2026-05-28; the 5-record cap does NOT apply to these three)
+
+FMP is the primary source for daily prices + fundamentals + corporate actions.
 
 ### Major architectural decisions
 *(See [Decision Log](#decision-log) for the per-decision ADRs with full reasoning.)*
@@ -156,7 +172,7 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 | JSONL audit log (`ingestion_log.jsonl`) | O(1) append; jq/pandas-friendly; tail-able. |
 | AV → cross-validation only (compact 100 days) | AV's `outputsize=full` moved to premium-only (discovered 2026-05-18); FMP took over as primary daily-price source. |
 | TICKERS swap GOOG→GOOGL, BRK-B→PYPL | Both BRK-B and GOOG are outside FMP free-tier's 85-ticker allowlist. GOOGL preserves dual-class narrative; PYPL preserves "no-dividend + corporate-action spinoff" narrative. |
-| Fundamentals capped at 5 records per call | FMP free-tier constraint; Silver layer handles partial history. |
+| Fundamentals capped at 5 records per call (4 of 7 endpoints) | FMP free-tier constraint on `income_statement`/`balance_sheet`/`cash_flow`/`key_metrics`; Silver layer handles partial history. `earnings`/`dividends`/`splits` are NOT capped (ADR-0011 amendment 2026-05-28). |
 | Insider trades → Phase 3 via SEC EDGAR | FMP's per-symbol insider endpoints are paywalled; SEC EDGAR Form 4 will recover this capability in a future phase. |
 | Silver = DLT pipelines | DLT verified available on Free Edition (handoff doc's claim was stale); `dlt.create_auto_cdc_flow(..., stored_as_scd_type=2)` gives native SCD2. |
 | Gold star schema (Kimball), 11 tables | 6 facts (`fact_stock_daily`, `fact_earnings_event`, `fact_financial_statement`, `fact_key_metric`, `fact_dividend_event`, `fact_split_event`) + 3 dims (`dim_date`, `dim_company` SCD2, `dim_fiscal_period`) + 2 aggregates (`agg_sector_daily`, `agg_company_monthly`). BI tool target: Tableau Public. |
@@ -175,14 +191,13 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 
 ### Free-tier constraints to live with
 - AV: 25/day, 5/min, `TIME_SERIES_DAILY?outputsize=full` is premium-only (compact = 100 days only)
-- FMP: 250/day, 85-ticker allowlist on most per-symbol endpoints (`profile` exempt), 5-response cap on fundamentals, `key-metrics` annual-only
+- FMP: 250/day, 85-ticker allowlist on most per-symbol endpoints (`profile` exempt), 5-response cap on 4 of 7 fundamentals endpoints (statements + `key_metrics`; `earnings`/`dividends`/`splits` return full history — see ADR-0011 amendment), `key_metrics` annual-only
 - Databricks Free Edition: serverless cluster auto-stops after ~10 min idle (~30-60s warm-up); DLT available
 - dbt Cloud Developer: ~3,000 model runs/month
 - GitHub: unlimited Actions minutes for public repos
 
 ### Next phase
-1. **`feat/bronze-databricks`** — Upload local Bronze JSONs to Databricks Unity Catalog Volume; **PySpark Autoloader** (`cloudFiles` + `.trigger(availableNow=True)`) into Delta Bronze tables with rescue-mode schema evolution (per [ADR-0018](docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md)).
-2. **`feat/silver-dlt`** — DLT pipelines for CDC + SCD2 via `dlt.create_auto_cdc_flow(stored_as_scd_type=2)`; `@dlt.expect_*` for data quality.
-3. **`feat/gold-dbt`** — dbt models for the 11 Gold tables; tests + docs.
-4. **`feat/ci-cd`** — GitHub Actions for dbt + lint + docs deploy to GitHub Pages.
-5. **Phase 3 (later):** `feat/sec-edgar-insiders` — recover `fact_insider_trade` via SEC EDGAR Form 4.
+1. **`feat/silver-dlt`** — DLT pipelines for CDC + SCD2 via `dlt.create_auto_cdc_flow(stored_as_scd_type=2)`; `@dlt.expect_*` for data quality. AV `time_series_daily` joins here per [ADR-0019](docs/adr/0019-alpha-vantage-deferred-from-bronze.md).
+2. **`feat/gold-dbt`** — dbt models for the 11 Gold tables; tests + docs.
+3. **`feat/ci-cd`** — GitHub Actions for dbt + lint + docs deploy to GitHub Pages.
+4. **Phase 3 (later):** `feat/sec-edgar-insiders` — recover `fact_insider_trade` via SEC EDGAR Form 4.
