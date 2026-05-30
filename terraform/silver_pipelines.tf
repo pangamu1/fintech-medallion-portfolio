@@ -61,3 +61,22 @@ resource "databricks_pipeline" "silver_fundamentals" {
     }
   }
 }
+resource "databricks_workspace_file" "silver_alpha_vantage_py" {
+  source = "${path.module}/../databricks/dlt/silver/silver_alpha_vantage.py"
+  path   = "/Users/piruthviraj5@outlook.com/silver/silver_alpha_vantage.py"
+}
+
+resource "databricks_pipeline" "silver_alpha_vantage" {
+  name       = "silver_alpha_vantage"
+  serverless = true
+  catalog    = "silver"
+  schema     = "alpha_vantage"
+  channel    = "CURRENT"
+  continuous = false
+
+  library {
+    file {
+      path = databricks_workspace_file.silver_alpha_vantage_py.workspace_path
+    }
+  }
+}
