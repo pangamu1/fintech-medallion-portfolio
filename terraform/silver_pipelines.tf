@@ -7,6 +7,10 @@ resource "databricks_workspace_file" "silver_profile_py" {
   source = "${path.module}/../databricks/dlt/silver/silver_profile.py"
   path   = "/Users/piruthviraj5@outlook.com/silver/silver_profile.py"
 }
+resource "databricks_workspace_file" "silver_events_actions_py" {
+  source = "${path.module}/../databricks/dlt/silver/silver_events_actions.py"
+  path   = "/Users/piruthviraj5@outlook.com/silver/silver_events_actions.py"
+}
 
 resource "databricks_pipeline" "silver_events" {
   name       = "silver_events"
@@ -19,6 +23,11 @@ resource "databricks_pipeline" "silver_events" {
   library {
     file {
       path = databricks_workspace_file.silver_profile_py.workspace_path
+    }
+  }
+  library {
+    file {
+      path = databricks_workspace_file.silver_events_actions_py.workspace_path
     }
   }
 }
