@@ -22,3 +22,42 @@ resource "databricks_pipeline" "silver_events" {
     }
   }
 }
+resource "databricks_workspace_file" "silver_prices_py" {
+  source = "${path.module}/../databricks/dlt/silver/silver_prices.py"
+  path   = "/Users/piruthviraj5@outlook.com/silver/silver_prices.py"
+}
+
+resource "databricks_workspace_file" "silver_fundamentals_py" {
+  source = "${path.module}/../databricks/dlt/silver/silver_fundamentals.py"
+  path   = "/Users/piruthviraj5@outlook.com/silver/silver_fundamentals.py"
+}
+
+resource "databricks_pipeline" "silver_prices" {
+  name       = "silver_prices"
+  serverless = true
+  catalog    = "silver"
+  schema     = "fmp"
+  channel    = "CURRENT"
+  continuous = false
+
+  library {
+    file {
+      path = databricks_workspace_file.silver_prices_py.workspace_path
+    }
+  }
+}
+
+resource "databricks_pipeline" "silver_fundamentals" {
+  name       = "silver_fundamentals"
+  serverless = true
+  catalog    = "silver"
+  schema     = "fmp"
+  channel    = "CURRENT"
+  continuous = false
+
+  library {
+    file {
+      path = databricks_workspace_file.silver_fundamentals_py.workspace_path
+    }
+  }
+}
