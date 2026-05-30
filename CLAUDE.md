@@ -43,6 +43,7 @@ Currently published:
 - [ADR-0017 — Databricks Free Edition: `account admins` not a resolvable principal; UC grants pinned to workspace owner email](docs/adr/0017-free-edition-account-admins-principal-unavailable.md)
 - [ADR-0018 — Bronze runs on PySpark Autoloader; supersedes `COPY INTO` for the Bronze layer](docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md)
 - [ADR-0019 — Alpha Vantage `TIME_SERIES_DAILY` deferred from Bronze; Silver consumes JSON directly](docs/adr/0019-alpha-vantage-deferred-from-bronze.md)
+- [ADR-0020 — `silver.dq` observability schema for cross-source data-quality tables](docs/adr/0020-silver-dq-observability-schema.md)
 
 ## Architecture (Authoritative)
 ```
