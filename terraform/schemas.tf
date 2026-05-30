@@ -39,3 +39,8 @@ resource "databricks_schema" "gold_marts" {
   name         = "marts"
   comment      = "DBT marts: Kimball star schema (6 facts + 3 dims + 2 aggregates)."
 }
+resource "databricks_schema" "silver_dq" {
+  catalog_name = databricks_catalog.silver.name
+  name         = "dq"
+  comment      = "DLT data-quality / observability outputs: FMP vs Alpha Vantage price cross-validation (ADR-0020); future home for file-audit + freshness checks."
+}
