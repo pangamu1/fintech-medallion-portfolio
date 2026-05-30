@@ -50,6 +50,26 @@ Per [ADR-0009](0009-alpha-vantage-downgrade-fmp-primary-prices.md), this table i
   - Memory `project_databricks_connection.md` — add `silver.dq.price_cross_validation` + the `silver_dq` pipeline to the inventory.
   - CP11 (`_file_audit`) and any freshness/gap checks land in `silver.dq` when implemented.
 
+## Amendments
+
+### 2026-05-30 — CP11 second `silver.dq` tenant: `coverage_audit` (reframed from `_file_audit`)
+
+The original roadmap (ADR-0018 Consequences; `feat/silver-dlt` plan CP11) named a `_file_audit` table to **detect 0-event files** — files that landed but produced zero Bronze rows. CP11 grounding invalidated that premise:
+
+- [`fintech_datalake/scripts/ingest_fmp.py`](../../fintech_datalake/scripts/ingest_fmp.py) (empty-list branch) **logs and skips** — an empty FMP response (`[]`) is never written to the lake, so no file is uploaded for that `(symbol, endpoint)`.
+- Bronze's `explode(data)` would drop an empty array anyway.
+
+Therefore **no 0-event files exist**: every file that reached Bronze produced ≥1 row. The phenomenon the audit was meant to catch manifests instead as **missing `(symbol, endpoint)` coverage** — a combination that never produced a file. On-disk confirmation: `dividends` absent for AMZN/TSLA (non-payers); `splits` absent for META/PYPL.
+
+The table materialized as **`silver.dq.coverage_audit`**, a coverage matrix: `crossJoin` of the data-driven symbol universe (`DISTINCT _ticker FROM bronze.fmp.profile`) × the 10 FMP endpoints, left-joined to actual per-`(symbol, endpoint)` Bronze row counts, with `record_count` (coalesced to 0) and a `has_data` boolean. `has_data = false` flags an absent combination — expected for the four known non-payer/non-split cases, or a real ingestion gap otherwise. Only `expect_or_fail("valid_key")`; no drop (audit retains gap rows).
+
+Implementation notes:
+- Lands as a **second `@dlt.table` in the existing `silver_dq.py`** / `silver_dq` pipeline — no new pipeline or schema. This is the first concrete proof of ADR-0020's "`silver.dq` is the home for future DQ tables" claim. TF surface change was a single `databricks_workspace_file` content re-sync (`0 add, 1 change`).
+- `_ticker` (envelope field, present in every Bronze table) is the uniform join key, not `record.symbol`.
+- Decision (CP11): name it `coverage_audit`, not `file_audit` — the honest name for what it detects. The ADR-0018 `_file_audit` reference is superseded by this entry.
+
+The CP11 stretch is therefore **complete within Silver**, not deferred to a separate `feat/bronze-audit` branch as the plan tentatively suggested — the coverage-matrix framing fits Silver's read-from-Bronze surface cleanly.
+
 ## References
 
 - [ADR-0009](0009-alpha-vantage-downgrade-fmp-primary-prices.md) — AV downgraded to cross-validation; this ADR is the operational follow-through for the reconciliation it promised.
