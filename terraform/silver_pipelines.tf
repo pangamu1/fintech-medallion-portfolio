@@ -80,3 +80,22 @@ resource "databricks_pipeline" "silver_alpha_vantage" {
     }
   }
 }
+resource "databricks_workspace_file" "silver_dq_py" {
+  source = "${path.module}/../databricks/dlt/silver/silver_dq.py"
+  path   = "/Users/piruthviraj5@outlook.com/silver/silver_dq.py"
+}
+
+resource "databricks_pipeline" "silver_dq" {
+  name       = "silver_dq"
+  serverless = true
+  catalog    = "silver"
+  schema     = "dq"
+  channel    = "CURRENT"
+  continuous = false
+
+  library {
+    file {
+      path = databricks_workspace_file.silver_dq_py.workspace_path
+    }
+  }
+}
