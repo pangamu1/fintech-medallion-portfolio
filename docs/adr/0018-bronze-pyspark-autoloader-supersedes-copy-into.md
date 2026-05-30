@@ -100,6 +100,26 @@ The CP9.c schema-evolution probe (synthetic `_probe_field` injected into one AAP
 
 5. **`cloudFiles.allowOverwrites = false` verified.** The Consequences section above flagged same-path re-upload behavior "for CP10 verification." CP9.c proved it incidentally: an existing `AAPL_20260521.json` was re-uploaded to UC via the SDK Files API with `overwrite=True`, alongside the new `AAPL_20260528.json`. Post-job row count went 10 → 11 (the new file), not 12. Autoloader correctly skipped the re-uploaded existing path. Formal CP10 probe therefore unnecessary; the `_20260521` overwrite served as the same-path-re-upload test.
 
+### 2026-05-30 — CP10 rescue-recovery validation
+
+CP10 (`feat/silver-rescue-validation`) closed the loop on item 4's "Worth surfacing in `feat/silver-dlt` design" note by running the recovery against the still-present AAPL `20260528` probe row in `bronze.fmp.profile` from the SQL editor.
+
+6. **The `from_json` + path-navigation recovery pattern is verified, not merely asserted.** The exact query:
+
+   ```sql
+   SELECT from_json(
+     _rescued_data,
+     'data ARRAY<STRUCT<_probe_field: STRING>>, _file_path STRING'
+   ).data[0]._probe_field AS recovered_probe
+   FROM bronze.fmp.profile
+   WHERE _rescued_data IS NOT NULL;
+   -- → rescue_test_2026_05_28
+   ```
+
+   returns the original injected value. Treating `_rescued_data` as carrying a flat top-level `_probe_field` returns null, exactly as item 4 predicted — the value is reachable only via `.data[0].<field>` after parsing.
+
+   **Decision (CP10.3): document the pattern only.** No `_recovered_probe` column is surfaced in Silver (`profile_latest` / `company_scd2`) and no generic recovery macro is written. Rationale: the probe is a synthetic one-off, not a real recurring field; real schema-drift recovery is case-by-case because the `from_json` DDL schema depends on the drifted field's shape and nesting depth. A production column would be permanent noise and a speculative macro would have no live caller. The verified recipe lives here for the first real drift case that needs it.
+
 ## References
 
 - [ADR-0002](0002-medallion-layer-ownership.md) — original Bronze ownership; partially superseded by this ADR.
