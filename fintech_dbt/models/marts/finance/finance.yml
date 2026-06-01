@@ -182,3 +182,43 @@ models:
         data_tests: [not_null]
       - name: event_date
         data_tests: [not_null]
+
+  - name: agg_sector_daily
+    description: "Equal-weighted sector daily roll-up of fact_stock_daily (sector from dim_company). One row per (sector, trade_date). avg_change_percent = sector daily return for the heatmap archetype. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["sector", "date_key"]
+    columns:
+      - name: sector
+        data_tests: [not_null]
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_count
+        data_tests: [not_null]
+
+  - name: agg_company_monthly
+    description: "Monthly OHLCV roll-up of fact_stock_daily per company. One row per (symbol, year_month). monthly_open/close via min_by/max_by on price_date. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["symbol", "year_month"]
+    columns:
+      - name: company_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+      - name: year_month
+        data_tests: [not_null]
+      - name: trading_days
+        data_tests: [not_null]
