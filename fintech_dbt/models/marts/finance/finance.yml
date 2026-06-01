@@ -1,0 +1,224 @@
+version: 2
+
+models:
+  - name: fact_stock_daily
+    description: "Daily OHLCV + adjusted close, one row per (symbol, price_date). Incremental merge + 7-day lookback. Sources silver.fmp.daily_prices + daily_prices_adjusted; company FK via pit_join_company. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["symbol", "price_date"]
+    columns:
+      - name: date_key
+        description: "FK to dim_date (yyyyMMdd int)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_key
+        description: "FK to dim_company, point-in-time via pit_join_company (half-open SCD2 interval)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+      - name: price_date
+        data_tests: [not_null]
+      - name: close_price
+        description: "Unadjusted close."
+        data_tests: [not_null]
+
+  - name: fact_financial_statement
+    description: "Income/balance/cash-flow line items in long form, one row per (symbol, fiscal_year, fiscal_period, statement_type, line_item). Curated ~33 line-items unpivoted via stack(). Sources silver.fmp.{income_statement,balance_sheet,cash_flow}. ADR-0013; 5-record cap per ADR-0011."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["symbol", "fiscal_year", "fiscal_period", "statement_type", "line_item"]
+    columns:
+      - name: fiscal_period_key
+        description: "FK to dim_fiscal_period."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_fiscal_period')
+                field: fiscal_period_key
+      - name: period_end_date_key
+        description: "FK to dim_date (period-end yyyyMMdd)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_key
+        description: "FK to dim_company, point-in-time as of period_end_date."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+      - name: statement_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["income_statement", "balance_sheet", "cash_flow"]
+      - name: line_item
+        data_tests: [not_null]
+
+  - name: fact_key_metric
+    description: "Pre-computed valuation/return/liquidity metrics from silver.fmp.key_metrics (annual, FMP key-metrics endpoint — no P/E or dividend-yield; those are in FMP's separate ratios endpoint). One row per (symbol, fiscal_period). ADR-0013; 5-record cap per ADR-0011."
+    columns:
+      - name: fiscal_period_key
+        description: "FK to dim_fiscal_period. Primary key (one row per fiscal period)."
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_fiscal_period')
+                field: fiscal_period_key
+      - name: period_end_date_key
+        description: "FK to dim_date (period-end yyyyMMdd)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_key
+        description: "FK to dim_company, point-in-time as of period_end_date."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+    
+  - name: fact_earnings_event
+    description: "Earnings announcements, one row per (symbol, event_date). EPS/revenue actual vs estimate + surprises. Incremental merge + 90-day lookback. Full history from silver.fmp.earnings. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["symbol", "event_date"]
+    columns:
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+      - name: event_date
+        data_tests: [not_null]
+
+  - name: fact_dividend_event
+    description: "Dividend events, one row per (symbol, event_date = ex-date). dividend/adjDividend/yield/frequency + declaration/record/payment dates. Incremental merge + 90-day lookback. Full history from silver.fmp.dividends. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["symbol", "event_date"]
+    columns:
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+      - name: event_date
+        data_tests: [not_null]
+
+  - name: fact_split_event
+    description: "Stock splits, one row per (symbol, event_date). numerator/denominator + derived split_ratio + splitType. Incremental merge + 90-day lookback. Full history from silver.fmp.splits. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["symbol", "event_date"]
+    columns:
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+      - name: event_date
+        data_tests: [not_null]
+
+  - name: agg_sector_daily
+    description: "Equal-weighted sector daily roll-up of fact_stock_daily (sector from dim_company). One row per (sector, trade_date). avg_change_percent = sector daily return for the heatmap archetype. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["sector", "date_key"]
+    columns:
+      - name: sector
+        data_tests: [not_null]
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_count
+        data_tests: [not_null]
+
+  - name: agg_company_monthly
+    description: "Monthly OHLCV roll-up of fact_stock_daily per company. One row per (symbol, year_month). monthly_open/close via min_by/max_by on price_date. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["symbol", "year_month"]
+    columns:
+      - name: company_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+      - name: year_month
+        data_tests: [not_null]
+      - name: trading_days
+        data_tests: [not_null]
