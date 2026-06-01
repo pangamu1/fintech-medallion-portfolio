@@ -2,7 +2,7 @@
 
 with calendar as (
 
-    {{ dbt_date.get_date_dimension("2015-01-01", "2030-12-31") }}
+    {{ dbt_date.get_date_dimension("1960-01-01", "2030-12-31") }}
 
 ),
 
@@ -36,4 +36,4 @@ select
          when h.holiday_date is not null then false
          else true end                                      as is_market_open
 from calendar c
-left join holidays h on c.date_day = h.holiday_date
+left join holidays h on c.date_day = h.holiday_date 
