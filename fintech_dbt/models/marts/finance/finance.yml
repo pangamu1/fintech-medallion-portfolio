@@ -31,7 +31,7 @@ models:
       - name: close_price
         description: "Unadjusted close."
         data_tests: [not_null]
-        
+
   - name: fact_financial_statement
     description: "Income/balance/cash-flow line items in long form, one row per (symbol, fiscal_year, fiscal_period, statement_type, line_item). Curated ~33 line-items unpivoted via stack(). Sources silver.fmp.{income_statement,balance_sheet,cash_flow}. ADR-0013; 5-record cap per ADR-0011."
     data_tests:
@@ -72,4 +72,35 @@ models:
               arguments:
                 values: ["income_statement", "balance_sheet", "cash_flow"]
       - name: line_item
+        data_tests: [not_null]
+
+  - name: fact_key_metric
+    description: "Pre-computed valuation/return/liquidity metrics from silver.fmp.key_metrics (annual, FMP key-metrics endpoint — no P/E or dividend-yield; those are in FMP's separate ratios endpoint). One row per (symbol, fiscal_period). ADR-0013; 5-record cap per ADR-0011."
+    columns:
+      - name: fiscal_period_key
+        description: "FK to dim_fiscal_period. Primary key (one row per fiscal period)."
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_fiscal_period')
+                field: fiscal_period_key
+      - name: period_end_date_key
+        description: "FK to dim_date (period-end yyyyMMdd)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_key
+        description: "FK to dim_company, point-in-time as of period_end_date."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
         data_tests: [not_null]
