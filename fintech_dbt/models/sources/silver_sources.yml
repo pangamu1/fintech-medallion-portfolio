@@ -1,0 +1,136 @@
+version: 2
+
+sources:
+  - name: silver
+    description: "Silver-layer Delta tables (cleansed, CDC/SCD2) from Databricks DLT. Gold consumes these per ADR-0002."
+    database: silver
+    schema: fmp
+    tables:
+      - name: profile_latest
+        description: "Latest company profile per symbol."
+        columns:
+          - name: symbol
+            description: "Ticker. Grain = one row per symbol."
+            data_tests: [not_null, unique]
+
+      - name: company_scd2
+        description: "SCD2 company history. Source for dim_company; __START_AT/__END_AT are STRINGs (cast downstream)."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "__START_AT"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: __START_AT
+            description: "SCD2 effective-from (string)."
+            data_tests: [not_null]
+
+      - name: daily_prices
+        description: "Daily OHLCV per (symbol, price_date). No _loaded_at; only _batch_date (string)."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "price_date"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: price_date
+            data_tests: [not_null]
+
+      - name: daily_prices_adjusted
+        description: "Split/dividend-adjusted OHLCV per (symbol, price_date)."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "price_date"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: price_date
+            data_tests: [not_null]
+
+      - name: income_statement
+        description: "Income-statement line items (5-record cap, ADR-0011)."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "fiscalYear", "period"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: period_end_date
+            description: "Clean DATE period end; prefer over string `date`."
+            data_tests: [not_null]
+
+      - name: balance_sheet
+        description: "Balance-sheet line items (5-record cap)."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "fiscalYear", "period"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: period_end_date
+            data_tests: [not_null]
+
+      - name: cash_flow
+        description: "Cash-flow line items (5-record cap)."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "fiscalYear", "period"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: period_end_date
+            data_tests: [not_null]
+
+      - name: key_metrics
+        description: "Pre-computed annual ratios. Source for fact_key_metric."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "fiscalYear", "period"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: period_end_date
+            data_tests: [not_null]
+
+      - name: earnings
+        description: "Earnings events (full history). Source for fact_earnings_event."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "event_date"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: event_date
+            data_tests: [not_null]
+
+      - name: dividends
+        description: "Dividend events (full history). Source for fact_dividend_event."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "event_date"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: event_date
+            data_tests: [not_null]
+
+      - name: splits
+        description: "Split events (full history). Source for fact_split_event."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["symbol", "event_date"]
+        columns:
+          - name: symbol
+            data_tests: [not_null]
+          - name: event_date
+            data_tests: [not_null]

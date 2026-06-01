@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Conformed calendar dimension (2015–2030). dbt_date calendar attributes + NYSE market-open/holiday flags (holidays from the nyse_holidays seed)."
+    columns:
+      - name: date_key
+        description: "Integer surrogate yyyyMMdd. Primary key."
+        data_tests: [not_null, unique]
+      - name: date_day
+        description: "Calendar date (natural key). Contiguous, no gaps."
+        data_tests:
+          - not_null
+          - unique
+          - dbt_utils.sequential_values:
+              arguments:
+                interval: 1
+                datepart: day
+      - name: is_weekday
+        data_tests: [not_null]
+      - name: is_holiday
+        data_tests: [not_null]
+      - name: is_market_open
+        description: "True on NYSE trading days."
+        data_tests: [not_null]
+      - name: quarter_of_year
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4]
+                quote: false
+
+  - name: dim_company
+    description: "SCD2 company dimension, surrogate-keyed. Consumed from silver.fmp.company_scd2 (Silver owns SCD2; dbt only surrogate-keys + surfaces). Grain: one row per (symbol, SCD2 version)."
+    columns:
+      - name: company_key
+        description: "Surrogate key = hash(symbol, scd_effective_from). Primary key."
+        data_tests: [not_null, unique]
+      - name: symbol
+        description: "Ticker (business key). Unique among current rows."
+        data_tests:
+          - not_null
+          - unique:
+              config:
+                where: "is_current"
+      - name: scd_effective_from
+        data_tests: [not_null]
+      - name: sector
+        data_tests: [not_null]
+      - name: is_current
+        data_tests: [not_null]
+        
+  - name: dim_fiscal_period
+    description: "Company fiscal-period dimension (annual, FY). Distinct (symbol, fiscal_year, FY) across the 4 Silver fundamentals. Separate from dim_date because fiscal year-ends vary by company."
+    columns:
+      - name: fiscal_period_key
+        description: "Surrogate hash(symbol, fiscal_year, fiscal_period). Primary key."
+        data_tests: [not_null, unique]
+      - name: symbol
+        data_tests: [not_null]
+      - name: fiscal_year
+        data_tests: [not_null]
+      - name: period_end_date
+        data_tests: [not_null]
+      - name: period_end_date_key
+        description: "FK to dim_date.date_key (fiscal-period end)."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
