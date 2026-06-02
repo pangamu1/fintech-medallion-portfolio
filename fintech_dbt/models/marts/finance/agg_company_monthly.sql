@@ -29,4 +29,4 @@ select
     avg(close_price)                                as avg_close,
     count(*)                                        as trading_days
 from daily
-group by company_key, symbol, sector, year_month, month_start_date
+group by company_key, symbol, sector, year_month, month_start_date-- ci smoke test
