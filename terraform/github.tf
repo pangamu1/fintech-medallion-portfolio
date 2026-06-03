@@ -22,3 +22,14 @@ resource "github_actions_secret" "databricks_token" {
   secret_name = "DATABRICKS_TOKEN"
   value       = var.databricks_token
 }
+resource "github_actions_secret" "dbt_cloud_config" {
+  repository  = var.github_repo
+  secret_name = "DBT_CLOUD_CONFIG"
+  value       = var.dbt_cloud_config
+}
+
+resource "github_actions_secret" "dbt_cloud_api_token" {
+  repository  = var.github_repo
+  secret_name = "DBT_CLOUD_API_TOKEN"
+  value       = var.dbt_cloud_api_token
+}

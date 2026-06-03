@@ -4,3 +4,6 @@ databricks_token = "<your-databricks-pat>"
 github_owner = "<your-github-username-or-org>"
 github_token = "<your-github-pat>"
 github_repo  = "fintech-medallion-portfolio"
+
+dbt_cloud_config    = "<paste-contents-of-~/.dbt/dbt_cloud.yml>"
+dbt_cloud_api_token = "<your-dbt-cloud-service-token>"
