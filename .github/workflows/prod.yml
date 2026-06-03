@@ -1,0 +1,88 @@
+name: CD — prod build + docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fintech_dbt/**'
+  workflow_dispatch:
+
+concurrency:
+  group: prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  DBT_CLOUD_HOST: hf168.us1.dbt.com
+  DBT_CLOUD_ACCOUNT_ID: "70506183132386"
+  DBT_CLOUD_JOB_ID: "70506183132667"
+
+jobs:
+  prod-build:
+    name: dbt Cloud prod build + docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger dbt Cloud Prod build job
+        id: trigger
+        env:
+          DBT_CLOUD_API_TOKEN: ${{ secrets.DBT_CLOUD_API_TOKEN }}
+        run: |
+          run_id=$(curl -fsS -X POST \
+            "https://${DBT_CLOUD_HOST}/api/v2/accounts/${DBT_CLOUD_ACCOUNT_ID}/jobs/${DBT_CLOUD_JOB_ID}/run/" \
+            -H "Authorization: Token ${DBT_CLOUD_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"cause\": \"GitHub Actions: merge ${GITHUB_SHA} to main\"}" \
+            | jq -r '.data.id')
+          echo "Triggered run: $run_id"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Poll run to completion
+        env:
+          DBT_CLOUD_API_TOKEN: ${{ secrets.DBT_CLOUD_API_TOKEN }}
+          RUN_ID: ${{ steps.trigger.outputs.run_id }}
+        run: |
+          while true; do
+            status=$(curl -fsS \
+              "https://${DBT_CLOUD_HOST}/api/v2/accounts/${DBT_CLOUD_ACCOUNT_ID}/runs/${RUN_ID}/" \
+              -H "Authorization: Token ${DBT_CLOUD_API_TOKEN}" \
+              | jq -r '.data.status')
+            echo "run ${RUN_ID} status=${status}"
+            if [ "$status" -ge 10 ]; then break; fi
+            sleep 15
+          done
+          if [ "$status" -ne 10 ]; then
+            echo "::error::dbt Cloud run ${RUN_ID} ended with status ${status} (10=success, 20=error, 30=cancelled)"
+            exit 1
+          fi
+          echo "Prod build succeeded (run ${RUN_ID})"
+      - name: Download dbt docs artifacts
+        env:
+          DBT_CLOUD_API_TOKEN: ${{ secrets.DBT_CLOUD_API_TOKEN }}
+          RUN_ID: ${{ steps.trigger.outputs.run_id }}
+        run: |
+          mkdir -p dbt-docs
+          for f in manifest.json catalog.json index.html; do
+            curl -fsS \
+              "https://${DBT_CLOUD_HOST}/api/v2/accounts/${DBT_CLOUD_ACCOUNT_ID}/runs/${RUN_ID}/artifacts/${f}" \
+              -H "Authorization: Token ${DBT_CLOUD_API_TOKEN}" \
+              -o "dbt-docs/${f}"
+            echo "downloaded ${f} ($(wc -c < dbt-docs/${f}) bytes)"
+          done
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dbt-docs/
+  deploy:
+    name: Deploy docs to GitHub Pages
+    needs: prod-build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
