@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  slim-ci:
+    name: dbt Slim CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+
+      - name: Install dbt Cloud CLI
+        run: |
+          curl -fsSL "https://github.com/dbt-labs/dbt-cli/releases/download/v0.40.17/dbt_0.40.17_linux_amd64.tar.gz" -o dbt.tar.gz
+          tar -xf dbt.tar.gz
+          sudo mv dbt /usr/local/bin/dbt
+          dbt --version
+
+      - name: Configure dbt Cloud CLI
+        env:
+          DBT_CLOUD_CONFIG: ${{ secrets.DBT_CLOUD_CONFIG }}
+        run: |
+          mkdir -p ~/.dbt
+          printf '%s' "$DBT_CLOUD_CONFIG" > ~/.dbt/dbt_cloud.yml
+
+      - name: dbt build — Slim CI (modified models + downstream, auto-defer to prod)
+        working-directory: fintech_dbt
+        run: dbt build --select state:modified+
