@@ -45,6 +45,8 @@ Currently published:
 - [ADR-0019 — Alpha Vantage `TIME_SERIES_DAILY` deferred from Bronze; Silver consumes JSON directly](docs/adr/0019-alpha-vantage-deferred-from-bronze.md)
 - [ADR-0020 — `silver.dq` observability schema for cross-source data-quality tables](docs/adr/0020-silver-dq-observability-schema.md)
 - [ADR-0021 — Gold star-schema implementation refinements to ADR-0013 (half-open pit-join, SCD2 initial-load backdating, `dim_date` range, materialization-by-cadence)](docs/adr/0021-gold-implementation-refinements.md)
+- [ADR-0022 — CI/CD via GitHub Actions: dbt Cloud CLI Slim-CI on PR, Admin-API job-trigger for CD, docs → Pages](docs/adr/0022-cicd-github-actions-dbt-cloud.md)
+- [ADR-0023 — Two-tier dbt environment model (dev → prod, no UAT)](docs/adr/0023-two-tier-dbt-environments.md)
 
 ## Architecture (Authoritative)
 ```
@@ -79,9 +81,10 @@ Python ingest  →  Local JSON Lake  →  Databricks Free Edition  →  DBT Clou
 - Naming: `stg_*` (not used — no staging here), `dim_*`, `fact_*`, `int_*`, sources declared under `silver` schema
 
 ## CI/CD Conventions
-- Branch → PR → GitHub Actions runs `pre-commit` + `dbt build --select state:modified+ --defer`
-- Merge to `main` → DBT Cloud production job runs `dbt build` then `dbt docs generate`
-- A follow-on Action publishes docs to GitHub Pages
+*(As built on `feat/ci-cd`; see [ADR-0022](docs/adr/0022-cicd-github-actions-dbt-cloud.md).)*
+- Branch → PR → GitHub Actions (`ci.yml`) runs `dbt build --select state:modified+` via the **dbt Cloud CLI** (auto-defers + auto-resolves state to the Production env; builds land in dev `workspace.dbt_praj`). **No lint job yet** — `pre-commit` + `sqlfluff` deferred to future `feat/lint-precommit`.
+- Merge to `main` (path-filtered to `fintech_dbt/**`) → GitHub Actions (`prod.yml`) **triggers the dbt Cloud "Prod build" Deploy job via the Admin API** (the Cloud CLI can't target prod), polls to completion, then `dbt docs generate` artifacts are produced by the job.
+- The same `prod.yml` deploys the docs artifacts to GitHub Pages (`upload-pages-artifact` + `deploy-pages`), gated on a successful prod build.
 
 ## Working Style for This Project — LEARNING MODE (locked 2026-05-14)
 - **Claude does NOT write code or create files directly.** Project source files (`*.py`, `*.toml`, `*.yml`, `.gitignore`, `.env*`, etc.) are typed entirely by the user. This is non-negotiable.
@@ -124,7 +127,7 @@ Prefer logic-only verification (AST inspection, file `grep`, syntax check) befor
 ### When unsure, ask — never invent
 If the user's intent or the API's behavior is unclear, use AskUserQuestion or have the user paste documentation/screenshots. NEVER fabricate API behavior, response shapes, rate limits, or tier policies. If docs aren't readable via WebFetch, have the user paste relevant sections.
 
-## Current Progress (last updated 2026-06-01)
+## Current Progress (last updated 2026-06-03)
 
 > Operational state (per-branch plan files, machine-local connection details) lives outside this document — see `~/.claude/plans/` and the project's auto-memory. This section is the high-level public-facing log only.
 
@@ -144,7 +147,8 @@ If the user's intent or the API's behavior is unclear, use AskUserQuestion or ha
 - **Defer Alpha Vantage from Bronze** (PR #13, merged 2026-05-28) — removed the AV Autoloader job; AV's `TIME_SERIES_DAILY` response uses a date-keyed STRUCT for `data`, incompatible with the FMP-array `explode(data)` pattern. Bronze now runs 10 streams (FMP only); AV JSONs continue to land in UC and will be consumed at Silver directly (ADR-0019).
 - **Bronze scale-up across all 10 FMP streams** (PR #14, merged 2026-05-28) — full-scale Autoloader run populated all 10 Bronze tables: `profile` 11 rows (incl. 1 rescue-probe row), `historical_price_full` 12540, `historical_price_adjusted` 12540, `income_statement`/`balance_sheet`/`cash_flow`/`key_metrics` 50 each (5-cap × 10 tickers), `earnings` 1171, `dividends` 653, `splits` 39. CP9.c verified rescue-mode behavior (unknown fields routed to `_rescued_data` with full source-path preserved, not just `{field: value}`) and confirmed `cloudFiles.allowOverwrites = false` is the default (10 → 11 rows on same-path re-upload, not 12). ADR-0018 amended with §2026-05-28 items 4–5; ADR-0011 amended to record that `earnings`/`dividends`/`splits` return full history (not 5-capped); bronze UC catalog comment updated to reflect Autoloader-not-`COPY INTO`.
 - **Silver DLT layer** (PRs #16–#22, merged through 2026-05-30) — 5 TF-managed serverless DLT pipelines producing **14 Silver tables**: `silver.fmp` (11 — `profile_latest`, `company_scd2` SCD2 via `create_auto_cdc_flow(stored_as_scd_type=2)`, `daily_prices`, `daily_prices_adjusted`, the 4 fundamentals, + `earnings`/`dividends`/`splits` event tables backfilled in #22), `silver.alpha_vantage.daily_prices` (AV consumed directly per ADR-0019, cross-validated vs FMP), and `silver.dq` (2 observability tables — `price_cross_validation`, `coverage_audit`, ADR-0020). DLT factory pattern + per-domain DQ expectation severity established.
-- **Gold dbt marts** (`feat/gold-dbt-foundation`, PR pending 2026-06-01) — all **11 ADR-0013 Gold tables** built + tested in dbt Cloud (Developer plan, CLI) against `silver.fmp`: 3 dims (`dim_date` 1960–2030 + NYSE-holiday seed, `dim_company` SCD2 surrogate-keyed, `dim_fiscal_period`), 6 facts (`fact_stock_daily` incremental + 5 more), 2 aggregates, + the `pit_join_company` half-open point-in-time macro. Full `dbt build` green `PASS=125 ERROR=0`; docs + lineage verified. Four implementation refinements to ADR-0013 recorded in [ADR-0021](docs/adr/0021-gold-implementation-refinements.md). Prod-target routing + docs→Pages deferred to `feat/ci-cd`.
+- **Gold dbt marts** (`feat/gold-dbt-foundation`, PR #23, merged 2026-06-01) — all **11 ADR-0013 Gold tables** built + tested in dbt Cloud (Developer plan, CLI) against `silver.fmp`: 3 dims (`dim_date` 1960–2030 + NYSE-holiday seed, `dim_company` SCD2 surrogate-keyed, `dim_fiscal_period`), 6 facts (`fact_stock_daily` incremental + 5 more), 2 aggregates, + the `pit_join_company` half-open point-in-time macro. Full `dbt build` green `PASS=125 ERROR=0`; docs + lineage verified. Four implementation refinements to ADR-0013 recorded in [ADR-0021](docs/adr/0021-gold-implementation-refinements.md). Prod-target routing + docs→Pages deferred to `feat/ci-cd`.
+- **CI/CD on GitHub Actions** (`feat/ci-cd`, PR #24, in review 2026-06-03) — two workflows wiring CI/CD around the UI-managed dbt Cloud project. **PR — `ci.yml`:** pinned dbt Cloud CLI in Actions → `dbt build --select state:modified+` (Cloud CLI **auto-defers + auto-resolves state** to the Production env — no `--state`/`--defer` flags); builds land in dev `workspace.dbt_praj`; **no lint job** (pre-commit + sqlfluff deferred out of branch → future `feat/lint-precommit`). **Merge — `prod.yml`:** `push:[main]` path-filtered to `fintech_dbt/**` (+ `workflow_dispatch`) → triggers the dbt Cloud "Prod build" Deploy job via the **Admin API** (`POST .../jobs/{id}/run/`, `Authorization: Token`), polls to terminal status, downloads docs artifacts, deploys to **GitHub Pages** (`upload-pages-artifact` + `deploy-pages`, gated `needs: prod-build`). Central finding: the **dbt Cloud CLI cannot target the Production env** (always dev creds → `dbt_praj`), so `gold.marts` is reachable only by a Job — hence the API-trigger for CD ([ADR-0022](docs/adr/0022-cicd-github-actions-dbt-cloud.md)). dbt Cloud **Production** Deployment env + "Prod build" job (docs-on-run enabled) created; **`gold.marts`** populated (12 objects, `fact_stock_daily`=12540). Auth via `Account Admin` service token (`DBT_CLOUD_API_TOKEN`; Developer plan offers only Account-Admin/Read-Only roles). Pages enabled via UI (no standalone TF Pages resource — documented exception). 2-tier env model (dev→prod, no UAT) recorded in [ADR-0023](docs/adr/0023-two-tier-dbt-environments.md). Live docs site: `https://pangamu1.github.io/fintech-medallion-portfolio/`.
 
 ### Final TICKERS universe (10)
 `AAPL`, `MSFT`, `AMZN`, `META`, `TSLA`, `JPM`, `JNJ`, `NVDA`, `GOOGL`, `PYPL` — chosen across sectors to exercise schema evolution, SCD2 events (META 2018 sector reclassification, JNJ→Kenvue 2023 spinoff, NVDA 2024 split), bank-vs-tech schema enforcement, and no-dividend null handling.
@@ -202,8 +206,8 @@ FMP is the primary source for daily prices + fundamentals + corporate actions.
 - GitHub: unlimited Actions minutes for public repos
 
 ### Next phase
-1. **`feat/gold-dbt-foundation`** (in review) — 11 Gold dbt tables built + tested; PR pending. Merge → `main`.
-2. **`feat/ci-cd`** — GitHub Actions for dbt + lint + docs deploy to GitHub Pages; prod target → `gold.marts` via `generate_schema_name.sql`; dbt Cloud production job.
+1. **`feat/ci-cd`** (in review, PR #24) — CI Slim-CI + CD prod build + docs→Pages wired; ADRs 0022–0023 written. Remaining: merge PR #24, then post-merge e2e smoke (prod build → Pages render). Merge → `main`.
+2. **`feat/lint-precommit`** (future) — `pre-commit` + `sqlfluff` lint gate, deferred out of `feat/ci-cd` (sqlfluff package-macro resolution + rule-chasing). Findings preserved in the branch plan file.
 3. **Phase 3 (later):** `feat/sec-edgar-insiders` — recover `fact_insider_trade` via SEC EDGAR Form 4.
 
-*(Done: `feat/silver-dlt` — DLT CDC + SCD2 + DQ, PRs #16–#22. `feat/gold-dbt` — 11 Gold tables, in review.)*
+*(Done: `feat/silver-dlt` — DLT CDC + SCD2 + DQ, PRs #16–#22. `feat/gold-dbt-foundation` — 11 Gold tables, PR #23 merged.)*
