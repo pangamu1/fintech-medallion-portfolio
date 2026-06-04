@@ -129,3 +129,27 @@ AV_OUTPUTSIZE = "compact"
 ALPHA_VANTAGE_RATE_LIMIT_PER_MINUTE = 5
 ALPHA_VANTAGE_RATE_LIMIT_PER_DAY = 25
 FMP_RATE_LIMIT_PER_DAY = 250
+
+# === SEC EDGAR (Form 4 insider transactions) — keyless, politeness-gated ===
+# SEC fair-access REQUIRES a descriptive User-Agent carrying a real contact
+# email; requests without one get 403. It is NOT a secret (broadcast on every
+# call) — so it lives here as a plain constant, never in .env.
+
+SEC_USER_AGENT = "fintech-medallion-portfolio piruthviraj7@gmail.com"
+
+# Multi-hop API: (1) ticker->CIK map, (2) per-CIK filing history, (3) Form 4 doc.
+SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+SEC_SUBMISSIONS_BASE = "https://data.sec.gov/submissions"      # + /CIK{cik10}.json
+SEC_ARCHIVES_BASE = "https://www.sec.gov/Archives/edgar/data"  # + /{cik}/{accession_nodash}/{doc}
+
+# Only Form 4 (insider transactions); 4/A amendments deferred (CP0 decision 2).
+SEC_FORM_TYPE = "4"
+
+# Backfill window: most recent N Form 4 per ticker (CP0 decision 2; FMP-5-cap spirit).
+SEC_MAX_FILINGS_PER_TICKER = 30
+
+# SEC fair-access ceiling is 10 req/s; the client paces well under it.
+SEC_RATE_LIMIT_PER_SECOND = 10
+
+# Bronze disk + table name for the landed JSON (source="sec").
+SEC_ENDPOINT_NAME = "insider_transactions"

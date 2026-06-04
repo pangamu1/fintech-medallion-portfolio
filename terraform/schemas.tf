@@ -44,3 +44,14 @@ resource "databricks_schema" "silver_dq" {
   name         = "dq"
   comment      = "DLT data-quality / observability outputs: FMP vs Alpha Vantage price cross-validation (ADR-0020); future home for file-audit + freshness checks."
 }
+resource "databricks_schema" "ingestion_sec" {
+  catalog_name = databricks_catalog.ingestion.name
+  name         = "sec"
+  comment      = "Volume holding normalized SEC EDGAR Form 4 JSON files uploaded from the local lake."
+}
+
+resource "databricks_schema" "bronze_sec" {
+  catalog_name = databricks_catalog.bronze.name
+  name         = "sec"
+  comment      = "Delta table from PySpark Autoloader on ingestion.sec.raw_jsons: insider_transactions (Form 4), rescue-mode schema evolution (ADR-0018)."
+}

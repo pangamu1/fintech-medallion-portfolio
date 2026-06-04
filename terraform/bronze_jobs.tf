@@ -15,6 +15,7 @@ locals {
     "fmp.key_metrics"               = { source = "fmp", endpoint = "key_metrics" }
     "fmp.profile"                   = { source = "fmp", endpoint = "profile" }
     "fmp.splits"                    = { source = "fmp", endpoint = "splits" }
+    "sec.insider_transactions"      = { source = "sec", endpoint = "insider_transactions" }
   }
 }
 resource "databricks_workspace_file" "bronze_autoloader_run_py" {
