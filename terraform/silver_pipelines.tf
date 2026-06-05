@@ -108,3 +108,22 @@ resource "databricks_pipeline" "silver_dq" {
     }
   }
 }
+resource "databricks_workspace_file" "silver_sec_insiders_py" {
+  source = "${path.module}/../databricks/dlt/silver/silver_sec_insiders.py"
+  path   = "/Users/piruthviraj5@outlook.com/silver/silver_sec_insiders.py"
+}
+
+resource "databricks_pipeline" "silver_sec" {
+  name       = "silver_sec"
+  serverless = true
+  catalog    = "silver"
+  schema     = "sec"
+  channel    = "CURRENT"
+  continuous = false
+
+  library {
+    file {
+      path = databricks_workspace_file.silver_sec_insiders_py.workspace_path
+    }
+  }
+}
