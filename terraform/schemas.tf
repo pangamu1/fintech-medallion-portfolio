@@ -55,3 +55,8 @@ resource "databricks_schema" "bronze_sec" {
   name         = "sec"
   comment      = "Delta table from PySpark Autoloader on ingestion.sec.raw_jsons: insider_transactions (Form 4), rescue-mode schema evolution (ADR-0018)."
 }
+resource "databricks_schema" "silver_sec" {
+  catalog_name = databricks_catalog.silver.name
+  name         = "sec"
+  comment      = "DLT output: forward-only insider-transaction event table from bronze.sec.insider_transactions (Form 4); no SCD2 per ADR-0012."
+}
