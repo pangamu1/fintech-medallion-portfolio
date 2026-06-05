@@ -19,8 +19,10 @@ _NUMERIC_COLS = [
 @dlt.table(
     name="insider_transactions",
     comment="Forward-only Silver event table from bronze.sec.insider_transactions "
-            "(Form 4 lines), deduped to the latest ingested batch per "
-            "(accession, table, line_index). Dates + numerics typed; no SCD2.",
+            "(Form 4 lines), scoped to trades in our own securities "
+            "(ticker = issuer_symbol; drops outbound 10%-owner stakes like "
+            "Alphabet→LIFE), deduped per (accession, table, line_index). "
+            "Dates + numerics typed; no SCD2.",
 )
 @dlt.expect_or_fail(
     "valid_key",
@@ -38,6 +40,7 @@ def insider_transactions():
     )
     df = (
         spark.read.table(_SOURCE)
+        .filter(F.col("ticker") == F.col("issuer_symbol"))
         .withColumn("_rn", F.row_number().over(latest))
         .filter(F.col("_rn") == 1)
         .drop("_rn")
