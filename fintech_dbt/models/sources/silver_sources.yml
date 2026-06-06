@@ -134,3 +134,19 @@ sources:
             data_tests: [not_null]
           - name: event_date
             data_tests: [not_null]
+  - name: silver_sec
+    description: "Silver SEC EDGAR Form 4 insider transactions (event table, no SCD2). Schema 'sec', not 'fmp'. Gold consumes per ADR-0002."
+    database: silver
+    schema: sec
+    tables:
+      - name: insider_transactions
+        description: "Form 4 transaction lines, one row per (accession, table, line_index). Scoped to our 10-ticker universe (ticker = issuer_symbol)."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ["accession", "table", "line_index"]
+        columns:
+          - name: accession
+            data_tests: [not_null]
+          - name: transaction_date
+            data_tests: [not_null]            
