@@ -1,4 +1,6 @@
-# 0013 — Gold layer is a Kimball star schema: 6 facts + 3 dims + 2 aggregates
+# 0013 — Gold layer is a Kimball star schema: 7 facts + 3 dims + 2 aggregates
+
+> **2026-06-06:** amended 6→7 facts (`fact_insider_trade` added) — see [Amendments](#amendments). The body below preserves the original 6-fact decision as written.
 
 - **Status:** Accepted
 - **Date:** 2026-05-22 (decision dated 2026-05-19)
@@ -48,6 +50,21 @@ Facts join to `dim_company` via a `pit_join_company` macro that does point-in-ti
 - **Positive:** Schema is dimensionally correct, point-in-time correct via SCD2, and pre-aggregated where Tableau Public's free-tier limits make on-the-fly aggregation risky. Reviewers familiar with Kimball can read the schema and understand it without explanation.
 - **Negative / cost:** 11 tables to build, test, and document. The `pit_join_company` macro is non-trivial and needs careful testing on SCD2 edge cases (effective-from = effective-to, multiple same-day events).
 - **Follow-ups required:** `feat/gold-dbt` implements all 11 tables. Each fact gets `dbt test` coverage for not-null PKs, FK joins to dims, and accepted-values constraints on dimensional attributes. Aggregate tables get a refresh schedule tied to Silver freshness (no point recomputing if the underlying facts haven't changed).
+
+## Amendments
+
+### 2026-06-06 — 7th fact `fact_insider_trade` (Gold 11→12 tables)
+
+The deferred 7th fact has landed. [ADR-0012](0012-insider-trades-phase-3-sec-edgar.md) dropped `fact_insider_trade` from Phase 1/2; Phase 3 (`feat/sec-edgar-insiders`) recovered it from SEC EDGAR Form 4. Gold is now **12 tables = 7 facts + 3 dims + 2 aggregates**.
+
+**Added fact:**
+- `fact_insider_trade` — Form 4 insider transactions, one row per **transaction line** `(accession, transaction_table, line_index)`; non-derivative + derivative lines (holdings excluded). Reporting-owner relationship flags + transaction code/shares/price + derivative terms. Incremental + merge + 90-day lookback. Source `silver.sec.insider_transactions`. Joins `dim_company` via `pit_join_company` on `transaction_date`. **1,175 rows** in `gold.marts.fact_insider_trade`.
+
+Notes consistent with the original decision:
+- It reuses the established **event-fact pattern** (`fact_dividend_event`/`fact_split_event`): incremental merge, lookback window, `pit_join_company`. No new architectural shape.
+- Its Silver source is in schema `sec`, not `fmp`, so dbt needed a **second source block** (`silver_sec`) — a source carries one schema. This is a dbt mechanics detail, not a schema-design change.
+- The Spark reserved word `table` (Silver column name) is renamed to `transaction_table` in the fact to keep it usable in `unique_key`/merge.
+- EDGAR-specific ingestion decisions live in **[ADR-0024](0024-sec-edgar-form4-ingestion.md)**.
 
 ## References
 
