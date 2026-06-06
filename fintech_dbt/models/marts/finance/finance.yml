@@ -222,3 +222,33 @@ models:
         data_tests: [not_null]
       - name: trading_days
         data_tests: [not_null]
+        
+  - name: fact_insider_trade
+    description: "SEC Form 4 insider transactions, one row per (accession, transaction_table, line_index). Reporting-owner relationship flags + transaction code/shares/price + derivative terms. Incremental merge + 90-day lookback. From silver.sec.insider_transactions (scoped ticker = issuer_symbol). 7th Gold fact, recovers ADR-0012 deferral. ADR-0013."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["accession", "transaction_table", "line_index"]
+    columns:
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: company_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: symbol
+        data_tests: [not_null]
+      - name: accession
+        data_tests: [not_null]
+      - name: transaction_date
+        data_tests: [not_null]
+      - name: line_index
+        data_tests: [not_null]
