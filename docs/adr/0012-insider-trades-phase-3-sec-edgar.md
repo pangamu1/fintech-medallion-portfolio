@@ -29,6 +29,20 @@ The principled source is **SEC EDGAR**: insiders file Form 4 within 2 business d
 - **Negative / cost:** "Insider activity" dashboard is unavailable until Phase 3 ships. Phase 3 requires parsing Form 4 XML (ownership document format), which is non-trivial.
 - **Follow-ups required:** `feat/sec-edgar-insiders` branch when Phase 2 completes. ADR-NNNN (Phase 3 era) will document the EDGAR ingestion design, rate-limit handling, and Form 4 schema mapping. SEC EDGAR's User-Agent header policy must be honored (descriptive UA with contact info, per their fair-use policy).
 
+## Amendments
+
+### 2026-06-06 — Phase 3 shipped; insiders recovered (deferral reversed)
+
+The deferral this ADR records is now **reversed**. `feat/sec-edgar-insiders` (Phase 3) ingested SEC EDGAR Form 4 for the 10-ticker universe through the full medallion stack and landed `fact_insider_trade` in Gold — **1,175 rows** in `gold.marts.fact_insider_trade`, matching Silver exactly.
+
+What shipped, by layer:
+- **Ingest** (`fintech_datalake/scripts/ingest_sec_edgar.py`, PR #26 `20800af`) — keyless EDGAR client; ticker→CIK from `company_tickers.json`; 30 most-recent Form 4 per ticker; **XML parsed to normalized JSON at ingest** (one record per transaction line). 1,180 records / 10 files.
+- **Bronze** (`bronze.sec.insider_transactions`, Autoloader, PR #26) — 1,180 rows, rescue-clean.
+- **Silver** (`silver.sec.insider_transactions`, DLT event table, PRs #27/#28) — 1,175 rows; forward-only (no SCD2, like `dividends`/`splits`); scoped to our own securities via `ticker = issuer_symbol` (drops outbound >10%-owner stakes, e.g. Alphabet→LIFE).
+- **Gold** (`gold.marts.fact_insider_trade`, dbt incremental, PR #29 `45d00d2`) — 7th fact; joined to `dim_company` via `pit_join_company` on `transaction_date`; rode CI/CD to prod with zero manual steps.
+
+The "ADR-NNNN (Phase 3 era)" follow-up promised in the Consequences section is **[ADR-0024](0024-sec-edgar-form4-ingestion.md)** (EDGAR ingestion design, rate-limit/User-Agent handling, Form 4 field map). Gold's fact inventory in [ADR-0013](0013-gold-star-schema.md) is amended 6→7 facts (11→12 tables). The two paywalled FMP findings in the Context above remain accurate — EDGAR, not FMP, is the source.
+
 ## References
 
 - SEC EDGAR Form 4 documentation — https://www.sec.gov/forms (Form 4: "Statement of Changes in Beneficial Ownership")
