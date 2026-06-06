@@ -210,7 +210,8 @@ FMP is the primary source for daily prices + fundamentals + corporate actions.
 - GitHub: unlimited Actions minutes for public repos
 
 ### Next phase
-1. **`feat/lint-precommit`** (future) — `pre-commit` + `sqlfluff` lint gate, deferred out of `feat/ci-cd` (sqlfluff package-macro resolution + rule-chasing). Findings preserved in the branch plan file.
-2. **BI / dashboards (future):** Tableau Public dashboards over the 12 Gold tables (sector heatmap, insider-activity, etc.).
+1. **BI / dashboards (future):** Tableau Public dashboards over the 12 Gold tables (sector heatmap, insider-activity, etc.). The one forward thread; unstarted.
+
+**Cancelled:** `feat/lint-precommit` (`pre-commit` + `sqlfluff` lint gate) — dropped 2026-06-06. A lint gate earns its keep on multi-contributor repos; for a single-author portfolio it's ceremony without payoff. Scoping it to `fintech_dbt/` SQL only (`files: ^fintech_dbt/.*\.sql$` + lint-only `sqlfluff-lint`) was confirmed feasible, but the effort is skipped entirely.
 
 *(Done: `feat/silver-dlt` — DLT CDC + SCD2 + DQ, PRs #16–#22. `feat/gold-dbt-foundation` — 11 Gold tables, PR #23 merged. `feat/ci-cd` — Slim-CI + CD prod build + docs→Pages, PRs #24–#25 merged. `feat/sec-edgar-insiders` — Phase 3 `fact_insider_trade` via SEC EDGAR Form 4, PRs #26–#29 merged; Gold now 12 tables.)*
