@@ -210,7 +210,8 @@ FMP is the primary source for daily prices + fundamentals + corporate actions.
 - GitHub: unlimited Actions minutes for public repos
 
 ### Next phase
-1. **BI / dashboards (future):** Tableau Public dashboards over the 12 Gold tables (sector heatmap, insider-activity, etc.). The one forward thread; unstarted.
+1. **BI / dashboards (future):** Tableau Public dashboards over the 12 Gold tables (sector heatmap, insider-activity, etc.). Plan drafted: `~/.claude/plans/feat-bi-tableau-reverse-etl.md` (reverse-ETL → Sheets → Tableau Public + Databricks Dashboards; pre-CP0, feasibility partly spiked).
+2. **Unified orchestration via GitHub Actions (future):** a single scheduled "master pipeline" workflow (`on: schedule:` cron, ~weekly) chaining `ingest → bronze → silver → gold` through job `needs:` dependencies, reusing the existing Databricks job APIs + dbt Cloud Admin-API trigger + TF-managed `DATABRICKS_*`/`DBT_CLOUD_*` secrets. Replaces today's scattered on-demand triggers with one control plane. **Chosen over Apache Airflow deliberately:** GHA is serverless (GitHub hosts the cron + ephemeral runners — zero always-on infra), which fits the free-tier/no-ops constraint; Airflow's scheduler is an always-on daemon (cadence irrelevant to its cost) and would be over-engineering at this scale. Airflow skills belong in a separate dedicated project, not here.
 
 **Cancelled:** `feat/lint-precommit` (`pre-commit` + `sqlfluff` lint gate) — dropped 2026-06-06. A lint gate earns its keep on multi-contributor repos; for a single-author portfolio it's ceremony without payoff. Scoping it to `fintech_dbt/` SQL only (`files: ^fintech_dbt/.*\.sql$` + lint-only `sqlfluff-lint`) was confirmed feasible, but the effort is skipped entirely.
 
