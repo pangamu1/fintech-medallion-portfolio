@@ -35,3 +35,8 @@ variable "dbt_cloud_api_token" {
   type        = string
   sensitive   = true
 }
+variable "google_service_account" {
+  description = "Full JSON contents of the GCP service-account key (bi-sheets-writer) used by the BI reverse-ETL workflow to write gold marts into the serving Google Sheet (GOOGLE_SERVICE_ACCOUNT Actions secret)."
+  type        = string
+  sensitive   = true
+}

@@ -7,3 +7,5 @@ github_repo  = "fintech-medallion-portfolio"
 
 dbt_cloud_config    = "<paste-contents-of-~/.dbt/dbt_cloud.yml>"
 dbt_cloud_api_token = "<your-dbt-cloud-service-token>"
+
+google_service_account = "<paste-contents-of-the-gcp-service-account-json-key>"

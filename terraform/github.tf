@@ -33,3 +33,8 @@ resource "github_actions_secret" "dbt_cloud_api_token" {
   secret_name = "DBT_CLOUD_API_TOKEN"
   value       = var.dbt_cloud_api_token
 }
+resource "github_actions_secret" "google_service_account" {
+  repository  = var.github_repo
+  secret_name = "GOOGLE_SERVICE_ACCOUNT"
+  value       = var.google_service_account
+}
