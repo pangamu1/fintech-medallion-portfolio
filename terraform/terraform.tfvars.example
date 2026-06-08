@@ -1,5 +1,6 @@
 databricks_host  = "https://dbc-xxxxxxxx-xxxx.cloud.databricks.com"
 databricks_token = "<your-databricks-pat>"
+databricks_http_path = "/sql/1.0/warehouses/<warehouse-id>"
 
 github_owner = "<your-github-username-or-org>"
 github_token = "<your-github-pat>"
