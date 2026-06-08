@@ -59,7 +59,7 @@ def main() -> None:
             "function": endpoint["function"],
             "symbol": ticker,
             "outputsize": config.AV_OUTPUTSIZE, 
-            "apikey": config.ALPHA_VANTAGE_API_KEY,
+            "apikey": config.alpha_vantage_api_key(),
         }
 
         logger.info("Fetching %s %s from Alpha Vantage", ticker, endpoint["function"])

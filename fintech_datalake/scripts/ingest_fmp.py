@@ -60,7 +60,7 @@ def main() -> None:
             url = f"{config.FMP_BASE}/{endpoint['path']}"
             params = {
                 "symbol": ticker,
-                "apikey": config.FMP_API_KEY
+                "apikey": config.fmp_api_key()
             }
 
             logger.info("Fetching %s %s from FMP", ticker, endpoint_name)

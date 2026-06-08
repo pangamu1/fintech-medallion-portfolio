@@ -25,8 +25,32 @@ def _required_env(key: str) -> str:
         )
     return value
 
-ALPHA_VANTAGE_API_KEY = _required_env("ALPHA_VANTAGE_API_KEY")
-FMP_API_KEY = _required_env("FMP_API_KEY")
+
+# --- Secret accessors (lazy) -------------------------------------------------
+# Resolved on call, not at import, so each script only requires the keys it uses.
+# (Refines ADR-0008: fail-fast moves from import-time to first-use.)
+def alpha_vantage_api_key() -> str:
+    return _required_env("ALPHA_VANTAGE_API_KEY")
+
+
+def fmp_api_key() -> str:
+    return _required_env("FMP_API_KEY")
+
+
+def databricks_host() -> str:
+    return _required_env("DATABRICKS_HOST")
+
+
+def databricks_token() -> str:
+    return _required_env("DATABRICKS_TOKEN")
+
+
+def databricks_http_path() -> str:
+    return _required_env("DATABRICKS_HTTP_PATH")
+
+
+def google_application_credentials() -> str:
+    return _required_env("GOOGLE_APPLICATION_CREDENTIALS")
 
 # The 10 Tickers Universe
 TICKERS: list[str] = [
@@ -153,3 +177,18 @@ SEC_RATE_LIMIT_PER_SECOND = 10
 
 # Bronze disk + table name for the landed JSON (source="sec").
 SEC_ENDPOINT_NAME = "insider_transactions"
+
+# === BI serving layer (reverse-ETL → Google Sheets) ========================
+
+# Target serving Sheet. NOT a secret — access is gated by sharing the Sheet with
+# the service account; the published Tableau viz is public regardless.
+BI_SHEET_ID = "1_beahuTk7h3MiiPNBlYGuQzZG3t_b5ELEPqEI0ZQJOg"
+
+# Curated gold marts served to the Sheet, one tab each (CP0 decision 3).
+# Tab name = the table segment after the last dot.
+BI_MARTS: list[str] = [
+    "gold.marts.agg_company_monthly",
+    "gold.marts.agg_sector_daily",
+    "gold.marts.dim_company",
+    "gold.marts.fact_insider_trade",
+]

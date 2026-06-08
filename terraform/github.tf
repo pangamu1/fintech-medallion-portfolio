@@ -38,3 +38,8 @@ resource "github_actions_secret" "google_service_account" {
   secret_name = "GOOGLE_SERVICE_ACCOUNT"
   value       = var.google_service_account
 }
+resource "github_actions_secret" "databricks_http_path" {
+  repository  = var.github_repo
+  secret_name = "DATABRICKS_HTTP_PATH"
+  value       = var.databricks_http_path
+}

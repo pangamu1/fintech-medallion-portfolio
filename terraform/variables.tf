@@ -40,3 +40,7 @@ variable "google_service_account" {
   type        = string
   sensitive   = true
 }
+variable "databricks_http_path" {
+  description = "Databricks SQL warehouse HTTP path used by the BI reverse-ETL workflow (DATABRICKS_HTTP_PATH Actions secret)."
+  type        = string
+}
