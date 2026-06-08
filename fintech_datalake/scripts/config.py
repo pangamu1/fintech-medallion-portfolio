@@ -153,3 +153,30 @@ SEC_RATE_LIMIT_PER_SECOND = 10
 
 # Bronze disk + table name for the landed JSON (source="sec").
 SEC_ENDPOINT_NAME = "insider_transactions"
+
+# === BI serving layer (reverse-ETL → Google Sheets) ========================
+
+# Databricks SQL warehouse. host + token are secrets (already in .env); the
+# http_path carries the workspace-specific warehouse id, so it lives in .env too
+# — same privacy reasoning as the host (not committed).
+DATABRICKS_HOST = _required_env("DATABRICKS_HOST")
+DATABRICKS_TOKEN = _required_env("DATABRICKS_TOKEN")
+DATABRICKS_HTTP_PATH = _required_env("DATABRICKS_HTTP_PATH")
+
+# Service-account key file path. Local: .env points at your downloaded JSON.
+# CI (CP3): the workflow writes the GOOGLE_SERVICE_ACCOUNT secret to a temp file
+# and sets this var to that path — same code path, no rework.
+GOOGLE_APPLICATION_CREDENTIALS = _required_env("GOOGLE_APPLICATION_CREDENTIALS")
+
+# Target serving Sheet. NOT a secret — access is gated by sharing the Sheet with
+# the service account; the published Tableau viz is public regardless.
+BI_SHEET_ID = "1_beahuTk7h3MiiPNBlYGuQzZG3t_b5ELEPqEI0ZQJOg"
+
+# Curated gold marts served to the Sheet, one tab each (CP0 decision 3).
+# Tab name = the table segment after the last dot.
+BI_MARTS: list[str] = [
+    "gold.marts.agg_company_monthly",
+    "gold.marts.agg_sector_daily",
+    "gold.marts.dim_company",
+    "gold.marts.fact_insider_trade",
+]
