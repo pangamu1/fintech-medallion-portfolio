@@ -25,11 +25,11 @@ def fetch_table(fqn: str) -> tuple[list[str], list[tuple]]:
     so f-string interpolation of the identifier is safe — and SQL bind params
     can't bind table names anyway.
     """
-    server_hostname = config.DATABRICKS_HOST.replace("https://", "").rstrip("/")
+    server_hostname = config.databricks_host().replace("https://", "").rstrip("/")
     with sql.connect(
         server_hostname=server_hostname,
-        http_path=config.DATABRICKS_HTTP_PATH,
-        access_token=config.DATABRICKS_TOKEN,
+        http_path=config.databricks_http_path(),
+        access_token=config.databricks_token(),
     ) as connection:
         with connection.cursor() as cursor:
             cursor.execute(f"SELECT * FROM {fqn}")
@@ -66,7 +66,7 @@ def write_sheet(spreadsheet, tab_name: str, columns: list[str], rows: list[tuple
     logger.info("Wrote tab %s — %d data rows", tab_name, len(rows))
 
 def main() -> None:
-    gc = gspread.service_account(filename=config.GOOGLE_APPLICATION_CREDENTIALS)
+    gc = gspread.service_account(filename=config.google_application_credentials())
     spreadsheet = gc.open_by_key(config.BI_SHEET_ID)
 
     for fqn in config.BI_MARTS:

@@ -25,8 +25,32 @@ def _required_env(key: str) -> str:
         )
     return value
 
-ALPHA_VANTAGE_API_KEY = _required_env("ALPHA_VANTAGE_API_KEY")
-FMP_API_KEY = _required_env("FMP_API_KEY")
+
+# --- Secret accessors (lazy) -------------------------------------------------
+# Resolved on call, not at import, so each script only requires the keys it uses.
+# (Refines ADR-0008: fail-fast moves from import-time to first-use.)
+def alpha_vantage_api_key() -> str:
+    return _required_env("ALPHA_VANTAGE_API_KEY")
+
+
+def fmp_api_key() -> str:
+    return _required_env("FMP_API_KEY")
+
+
+def databricks_host() -> str:
+    return _required_env("DATABRICKS_HOST")
+
+
+def databricks_token() -> str:
+    return _required_env("DATABRICKS_TOKEN")
+
+
+def databricks_http_path() -> str:
+    return _required_env("DATABRICKS_HTTP_PATH")
+
+
+def google_application_credentials() -> str:
+    return _required_env("GOOGLE_APPLICATION_CREDENTIALS")
 
 # The 10 Tickers Universe
 TICKERS: list[str] = [
@@ -155,18 +179,6 @@ SEC_RATE_LIMIT_PER_SECOND = 10
 SEC_ENDPOINT_NAME = "insider_transactions"
 
 # === BI serving layer (reverse-ETL → Google Sheets) ========================
-
-# Databricks SQL warehouse. host + token are secrets (already in .env); the
-# http_path carries the workspace-specific warehouse id, so it lives in .env too
-# — same privacy reasoning as the host (not committed).
-DATABRICKS_HOST = _required_env("DATABRICKS_HOST")
-DATABRICKS_TOKEN = _required_env("DATABRICKS_TOKEN")
-DATABRICKS_HTTP_PATH = _required_env("DATABRICKS_HTTP_PATH")
-
-# Service-account key file path. Local: .env points at your downloaded JSON.
-# CI (CP3): the workflow writes the GOOGLE_SERVICE_ACCOUNT secret to a temp file
-# and sets this var to that path — same code path, no rework.
-GOOGLE_APPLICATION_CREDENTIALS = _required_env("GOOGLE_APPLICATION_CREDENTIALS")
 
 # Target serving Sheet. NOT a secret — access is gated by sharing the Sheet with
 # the service account; the published Tableau viz is public regardless.
