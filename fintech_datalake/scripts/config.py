@@ -187,8 +187,17 @@ BI_SHEET_ID = "1_beahuTk7h3MiiPNBlYGuQzZG3t_b5ELEPqEI0ZQJOg"
 # Curated gold marts served to the Sheet, one tab each (CP0 decision 3).
 # Tab name = the table segment after the last dot.
 BI_MARTS: list[str] = [
+    # dimensions
+    "gold.marts.dim_company",
+    # aggregates
     "gold.marts.agg_company_monthly",
     "gold.marts.agg_sector_daily",
-    "gold.marts.dim_company",
+    # facts
+    "gold.marts.fact_stock_daily",
+    "gold.marts.fact_earnings_event",
+    "gold.marts.fact_financial_statement",
+    "gold.marts.fact_key_metric",
+    "gold.marts.fact_dividend_event",
+    "gold.marts.fact_split_event",
     "gold.marts.fact_insider_trade",
 ]

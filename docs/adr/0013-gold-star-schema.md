@@ -66,6 +66,10 @@ Notes consistent with the original decision:
 - The Spark reserved word `table` (Silver column name) is renamed to `transaction_table` in the fact to keep it usable in `unique_key`/merge.
 - EDGAR-specific ingestion decisions live in **[ADR-0024](0024-sec-edgar-form4-ingestion.md)**.
 
+### 2026-06-12 — BI target "how" refined: Tableau Public via a Sheets serving layer (not live)
+
+The original Context names "BI tools (target: Tableau Public)" but leaves *how* Tableau reaches the warehouse unstated. [ADR-0025](0025-bi-tableau-via-sheets-serving-layer.md) resolves it: Tableau Public has **no Databricks connector** on the free tier, so the marts are reached via a **reverse-ETL serving layer** (a weekly GitHub Action runs `serve_to_sheets.py`, which reads the Gold marts over `databricks-sql-connector` and writes one tab per mart into a Google Sheet that Tableau Public reads). It is an **extract refreshed ~weekly, not a live connection**. The aggregate tables this ADR pre-computed (`agg_sector_daily`, `agg_company_monthly`) are part of the served set and back the Executive/Sector dashboards as intended. No change to the schema itself — only to how Gold is consumed downstream.
+
 ## References
 
 - Kimball, *The Data Warehouse Toolkit*, 3rd ed.
