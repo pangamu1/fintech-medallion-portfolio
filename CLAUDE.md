@@ -48,12 +48,15 @@ Currently published:
 - [ADR-0022 — CI/CD via GitHub Actions: dbt Cloud CLI Slim-CI on PR, Admin-API job-trigger for CD, docs → Pages](docs/adr/0022-cicd-github-actions-dbt-cloud.md)
 - [ADR-0023 — Two-tier dbt environment model (dev → prod, no UAT)](docs/adr/0023-two-tier-dbt-environments.md)
 - [ADR-0024 — SEC EDGAR Form 4 ingestion: parse-at-ingest, 30-filing backfill, keyless User-Agent client](docs/adr/0024-sec-edgar-form4-ingestion.md)
+- [ADR-0025 — BI consumption layer: Tableau Public via a Google-Sheets reverse-ETL serving layer (not a live warehouse connection); refines ADR-0013's BI "how", refines ADR-0008 to lazy first-use secret accessors](docs/adr/0025-bi-tableau-via-sheets-serving-layer.md)
 
 ## Architecture (Authoritative)
 ```
-Python ingest  →  Local JSON Lake  →  Databricks Free Edition  →  DBT Cloud (Developer free)  →  BI/Quant/Exec
-                                       Bronze + Silver layers       Gold marts (star schema)
+Python ingest  →  Local JSON Lake  →  Databricks Free Edition  →  DBT Cloud (Developer free)  →  Sheets serving layer  →  Tableau Public
+                                       Bronze + Silver layers       Gold marts (star schema)      (reverse-ETL, weekly GHA)   (public dashboards)
 ```
+
+> **BI consumption (downstream end):** Tableau Public has no Databricks connector on the free tier, so Gold is consumed via a **reverse-ETL serving layer** — a weekly GitHub Action runs `serve_to_sheets.py` (`databricks-sql-connector` → `gspread`), landing one tab per Gold mart in a Google Sheet that Tableau Public reads + republishes. An **extract refreshed ~weekly, not live**. See [ADR-0025](docs/adr/0025-bi-tableau-via-sheets-serving-layer.md).
 
 **Layer ownership — non-negotiable:**
 | Layer | Owner | Logic |
@@ -188,7 +191,7 @@ FMP is the primary source for daily prices + fundamentals + corporate actions.
 | Fundamentals capped at 5 records per call (4 of 7 endpoints) | FMP free-tier constraint on `income_statement`/`balance_sheet`/`cash_flow`/`key_metrics`; Silver layer handles partial history. `earnings`/`dividends`/`splits` are NOT capped (ADR-0011 amendment 2026-05-28). |
 | Insider trades → SEC EDGAR Form 4 (Phase 3, DONE) | FMP's per-symbol insider endpoints are paywalled; SEC EDGAR Form 4 recovered the capability — `fact_insider_trade` = 1,175 rows. XML parsed to JSON at ingest, 30-filing backfill window, keyless `User-Agent` client (ADR-0024). |
 | Silver = DLT pipelines | DLT verified available on Free Edition (handoff doc's claim was stale); `dlt.create_auto_cdc_flow(..., stored_as_scd_type=2)` gives native SCD2. |
-| Gold star schema (Kimball), 12 tables | 7 facts (`fact_stock_daily`, `fact_earnings_event`, `fact_financial_statement`, `fact_key_metric`, `fact_dividend_event`, `fact_split_event`, `fact_insider_trade`) + 3 dims (`dim_date`, `dim_company` SCD2, `dim_fiscal_period`) + 2 aggregates (`agg_sector_daily`, `agg_company_monthly`). BI tool target: Tableau Public. `fact_insider_trade` added in Phase 3 (ADR-0013 amendment). |
+| Gold star schema (Kimball), 12 tables | 7 facts (`fact_stock_daily`, `fact_earnings_event`, `fact_financial_statement`, `fact_key_metric`, `fact_dividend_event`, `fact_split_event`, `fact_insider_trade`) + 3 dims (`dim_date`, `dim_company` SCD2, `dim_fiscal_period`) + 2 aggregates (`agg_sector_daily`, `agg_company_monthly`). BI tool target: Tableau Public, reached via a Sheets reverse-ETL serving layer (not live — ADR-0025). `fact_insider_trade` added in Phase 3 (ADR-0013 amendment). |
 
 ### Conventions established
 - Branch naming: `init/`, `feat/`, `chore/`, `fix/` prefixes
@@ -210,7 +213,7 @@ FMP is the primary source for daily prices + fundamentals + corporate actions.
 - GitHub: unlimited Actions minutes for public repos
 
 ### Next phase
-1. **BI / dashboards (future):** Tableau Public dashboards over the 12 Gold tables (sector heatmap, insider-activity, etc.). Plan drafted: `~/.claude/plans/feat-bi-tableau-reverse-etl.md` (reverse-ETL → Sheets → Tableau Public + Databricks Dashboards; pre-CP0, feasibility partly spiked).
+1. **BI / dashboards (branch `feat/bi-dashboards`, not yet merged):** Reverse-ETL serving layer LIVE (`serve_to_sheets.py` + weekly `bi-refresh.yml`; serves all 10 Gold marts → Google Sheet; pipeline merged in PRs #33–#34). Tableau Public **4-dashboard suite BUILT + PUBLISHED** (2026-06-14) at <https://public.tableau.com/app/profile/piruthviraj.a.s/viz/FinTechMedallion-MarketAnalytics/ExecutiveOverview> (Company Deep-Dive, **Executive Overview = hub/landing**, Sector & Market, Fundamentals & Valuation; + an About/Architecture page with a native dark vector diagram). Hub-and-spoke nav via Navigation button objects (no tab strip on Tableau Public); all boards standardized to a uniform **1200×1500** fixed canvas because Tableau Public renders all sheets in one shared, fixed-size viz container that clips mixed sizes (documented-reality finding, see ADR-0025). Workbook is local-only (`.twbx`), not in repo. **Two honest debts deferred:** (a) **auto-refresh not yet activated** — Google not connected in Tableau Public web settings, so the published viz is a **static snapshot**, not the ~24h auto-refresh; (b) `agg_company_monthly.monthly_close` raw/unadjusted **split-distortion** debt (see ADR-0025 "known data-correctness debt"). Decision recorded in [ADR-0025](docs/adr/0025-bi-tableau-via-sheets-serving-layer.md); single channel (Databricks native Dashboards channel cut at CP0). Plan: `~/.claude/plans/feat-bi-tableau-reverse-etl.md`.
 2. **Unified orchestration via GitHub Actions (future):** a single scheduled "master pipeline" workflow (`on: schedule:` cron, ~weekly) chaining `ingest → bronze → silver → gold` through job `needs:` dependencies, reusing the existing Databricks job APIs + dbt Cloud Admin-API trigger + TF-managed `DATABRICKS_*`/`DBT_CLOUD_*` secrets. Replaces today's scattered on-demand triggers with one control plane. **Chosen over Apache Airflow deliberately:** GHA is serverless (GitHub hosts the cron + ephemeral runners — zero always-on infra), which fits the free-tier/no-ops constraint; Airflow's scheduler is an always-on daemon (cadence irrelevant to its cost) and would be over-engineering at this scale. Airflow skills belong in a separate dedicated project, not here.
 
 **Cancelled:** `feat/lint-precommit` (`pre-commit` + `sqlfluff` lint gate) — dropped 2026-06-06. A lint gate earns its keep on multi-contributor repos; for a single-author portfolio it's ceremony without payoff. Scoping it to `fintech_dbt/` SQL only (`files: ^fintech_dbt/.*\.sql$` + lint-only `sqlfluff-lint`) was confirmed feasible, but the effort is skipped entirely.

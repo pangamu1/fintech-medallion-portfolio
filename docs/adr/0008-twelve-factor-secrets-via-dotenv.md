@@ -28,6 +28,12 @@ API keys live in environment variables. A gitignored `.env` file at the repo roo
 - **Negative / cost:** `python-dotenv` is one extra dependency. The `.env` file is machine-local — backing up the dev environment requires remembering to grab it.
 - **Follow-ups required:** When CI/CD lands (`feat/ci-cd`), GitHub Actions reads keys from `secrets.*` and exposes them as env vars to the workflow — same `os.environ[...]` call sites work unchanged. Terraform (`feat/terraform-bootstrap`) injects the Databricks PAT into GitHub Actions secrets the same way.
 
+## Amendments
+
+### 2026-06-12 — eager `_required_env` constants → lazy first-use accessors
+
+`feat/bi-dashboards` (CP-B) converted the secrets from **eager module-level constants** to **lazy accessor functions** (`fmp_api_key()`, `databricks_host()`, `databricks_token()`, `databricks_http_path()`, …) and updated every call site. **Why:** the new reverse-ETL serving job (`serve_to_sheets.py`, [ADR-0025](0025-bi-tableau-via-sheets-serving-layer.md)) needs the Databricks + Google credentials but **none of the AV/FMP keys** — yet eager loading made *every* script fail-fast on *every* secret at import. Lazy accessors move the fail-fast boundary from **import-time to first-use**, so each entry point requires only the secrets it actually reads. The original decision's fail-fast guarantee is preserved; it now fires at the call site rather than at module import.
+
 ## References
 
 - 12-factor methodology, factor III "Config" — https://12factor.net/config
