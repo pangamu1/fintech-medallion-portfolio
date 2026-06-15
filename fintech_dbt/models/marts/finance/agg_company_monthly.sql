@@ -10,7 +10,8 @@ with daily as (
         f.high_price,
         f.low_price,
         f.close_price,
-        f.volume
+        f.volume,
+        f.adj_close
     from {{ ref('fact_stock_daily') }} f
     inner join {{ ref('dim_company') }} c on f.company_key = c.company_key
 )
@@ -25,6 +26,7 @@ select
     max(high_price)                                 as monthly_high,
     min(low_price)                                  as monthly_low,
     max_by(close_price, price_date)                 as monthly_close,
+    max_by(adj_close, price_date)                   as monthly_adj_close,
     sum(volume)                                     as monthly_volume,
     avg(close_price)                                as avg_close,
     count(*)                                        as trading_days
