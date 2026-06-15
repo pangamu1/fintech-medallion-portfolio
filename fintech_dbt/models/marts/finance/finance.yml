@@ -203,7 +203,7 @@ models:
         data_tests: [not_null]
 
   - name: agg_company_monthly
-    description: "Monthly OHLCV roll-up of fact_stock_daily per company. One row per (symbol, year_month). monthly_open/close via min_by/max_by on price_date. ADR-0013."
+    description: "Monthly OHLCV roll-up of fact_stock_daily per company. One row per (symbol, year_month). monthly_open/close via min_by/max_by on price_date. monthly_adj_close = split/dividend-adjusted close (use for trailing-return calcs; monthly_close stays raw for candlesticks). ADR-0013."
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
