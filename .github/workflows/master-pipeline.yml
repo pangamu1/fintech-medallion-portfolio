@@ -1,0 +1,224 @@
+name: Master pipeline — ingest → bronze → silver → gold → serve
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # weekly — Mondays 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      stages:
+        description: "How far to run the chain"
+        type: choice
+        default: full
+        options: [ingest-only, up-to-bronze, up-to-silver, up-to-gold, full]
+
+concurrency:
+  group: master-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    name: Ingest → local lake → UC volumes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Ingest FMP + Alpha Vantage + SEC EDGAR
+        working-directory: fintech_datalake/scripts
+        env:
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+        run: |
+          uv run python ingest_fmp.py
+          uv run python ingest_alpha_vantage.py
+          uv run python ingest_sec_edgar.py
+
+      - name: Upload local Bronze JSONs to UC volumes
+        working-directory: fintech_datalake/scripts
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: uv run python upload_bronze_to_uc.py
+
+  bronze:
+    name: Bronze · ${{ matrix.job.name }}
+    needs: ingest
+    if: ${{ inputs.stages != 'ingest-only' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(vars.BRONZE_JOB_IDS) }}
+    steps:
+      - name: Trigger + poll Autoloader job
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          JOB_ID: ${{ matrix.job.id }}
+        run: |
+          run_id=$(curl -fsS -X POST -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+            "$DATABRICKS_HOST/api/2.1/jobs/run-now" \
+            -d "{\"job_id\": $JOB_ID}" | jq -r '.run_id')
+          echo "triggered ${{ matrix.job.name }} run_id=$run_id"
+          while true; do
+            state=$(curl -fsS -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+              "$DATABRICKS_HOST/api/2.1/jobs/runs/get?run_id=$run_id" \
+              | jq -r '.state.life_cycle_state')
+            echo "run $run_id life_cycle_state=$state"
+            case "$state" in
+              TERMINATED|SKIPPED|INTERNAL_ERROR) break ;;
+            esac
+            sleep 15
+          done
+          result=$(curl -fsS -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+            "$DATABRICKS_HOST/api/2.1/jobs/runs/get?run_id=$run_id" \
+            | jq -r '.state.result_state')
+          echo "result_state=$result"
+          if [ "$result" != "SUCCESS" ]; then
+            echo "::error::Bronze job ${{ matrix.job.name }} (id $JOB_ID) ended result_state=$result"
+            exit 1
+          fi
+
+  silver-sources:
+    name: Silver source · ${{ matrix.pipeline.name }}
+    needs: bronze
+    if: ${{ inputs.stages != 'ingest-only' && inputs.stages != 'up-to-bronze' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        pipeline: ${{ fromJSON(vars.SILVER_SOURCE_PIPELINE_IDS) }}
+    steps:
+      - name: Trigger + poll DLT update
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          PIPELINE_ID: ${{ matrix.pipeline.id }}
+          PIPELINE_NAME: ${{ matrix.pipeline.name }}
+        run: |
+          update_id=$(curl -fsS -X POST -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+            "$DATABRICKS_HOST/api/2.0/pipelines/$PIPELINE_ID/updates" \
+            -d '{"full_refresh": false}' | jq -r '.update_id')
+          echo "triggered $PIPELINE_NAME update_id=$update_id"
+          while true; do
+            state=$(curl -fsS -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+              "$DATABRICKS_HOST/api/2.0/pipelines/$PIPELINE_ID/updates/$update_id" \
+              | jq -r '.update.state')
+            echo "update $update_id state=$state"
+            case "$state" in
+              COMPLETED|FAILED|CANCELED) break ;;
+            esac
+            sleep 15
+          done
+          if [ "$state" != "COMPLETED" ]; then
+            echo "::error::Silver pipeline $PIPELINE_NAME ($PIPELINE_ID) ended state=$state"
+            exit 1
+          fi
+
+  silver-dq:
+    name: Silver · dq (cross-validation + coverage)
+    needs: silver-sources
+    if: ${{ inputs.stages != 'ingest-only' && inputs.stages != 'up-to-bronze' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Trigger + poll DLT update
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          PIPELINE_ID: ${{ vars.SILVER_DQ_PIPELINE_ID }}
+        run: |
+          update_id=$(curl -fsS -X POST -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+            "$DATABRICKS_HOST/api/2.0/pipelines/$PIPELINE_ID/updates" \
+            -d '{"full_refresh": false}' | jq -r '.update_id')
+          echo "triggered silver_dq update_id=$update_id"
+          while true; do
+            state=$(curl -fsS -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+              "$DATABRICKS_HOST/api/2.0/pipelines/$PIPELINE_ID/updates/$update_id" \
+              | jq -r '.update.state')
+            echo "update $update_id state=$state"
+            case "$state" in
+              COMPLETED|FAILED|CANCELED) break ;;
+            esac
+            sleep 15
+          done
+          if [ "$state" != "COMPLETED" ]; then
+            echo "::error::silver_dq ($PIPELINE_ID) ended state=$state"
+            exit 1
+          fi
+
+  gold:
+    name: Gold · dbt Cloud prod build
+    needs: silver-dq
+    if: ${{ inputs.stages != 'ingest-only' && inputs.stages != 'up-to-bronze' && inputs.stages != 'up-to-silver' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DBT_CLOUD_HOST: hf168.us1.dbt.com
+      DBT_CLOUD_ACCOUNT_ID: "70506183132386"
+      DBT_CLOUD_JOB_ID: "70506183132667"
+    steps:
+      - name: Trigger + poll dbt Cloud prod build
+        env:
+          DBT_CLOUD_API_TOKEN: ${{ secrets.DBT_CLOUD_API_TOKEN }}
+        run: |
+          run_id=$(curl -fsS -X POST \
+            "https://${DBT_CLOUD_HOST}/api/v2/accounts/${DBT_CLOUD_ACCOUNT_ID}/jobs/${DBT_CLOUD_JOB_ID}/run/" \
+            -H "Authorization: Token ${DBT_CLOUD_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"cause\": \"master-pipeline ${GITHUB_RUN_ID}\"}" \
+            | jq -r '.data.id')
+          echo "triggered dbt run_id=$run_id"
+          while true; do
+            status=$(curl -fsS \
+              "https://${DBT_CLOUD_HOST}/api/v2/accounts/${DBT_CLOUD_ACCOUNT_ID}/runs/${run_id}/" \
+              -H "Authorization: Token ${DBT_CLOUD_API_TOKEN}" \
+              | jq -r '.data.status')
+            echo "dbt run $run_id status=$status"
+            if [ "$status" -ge 10 ]; then break; fi
+            sleep 15
+          done
+          if [ "$status" -ne 10 ]; then
+            echo "::error::dbt Cloud run $run_id ended status=$status (10=success,20=error,30=cancelled)"
+            exit 1
+          fi
+
+  serve:
+    name: Serve · gold marts → Google Sheet
+    needs: gold
+    if: ${{ inputs.stages != 'ingest-only' && inputs.stages != 'up-to-bronze' && inputs.stages != 'up-to-silver' && inputs.stages != 'up-to-gold' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Write service-account key to a temp file
+        env:
+          GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
+
+      - name: Run reverse-ETL (gold marts → Sheet)
+        working-directory: fintech_datalake/scripts
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
+        run: uv run python serve_to_sheets.py
