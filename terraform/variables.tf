@@ -44,3 +44,14 @@ variable "databricks_http_path" {
   description = "Databricks SQL warehouse HTTP path used by the BI reverse-ETL workflow (DATABRICKS_HTTP_PATH Actions secret)."
   type        = string
 }
+variable "fmp_api_key" {
+  description = "Financial Modeling Prep API key used by the ingest stage of the master pipeline (FMP_API_KEY Actions secret)."
+  type        = string
+  sensitive   = true
+}
+
+variable "alpha_vantage_api_key" {
+  description = "Alpha Vantage API key used by the ingest stage of the master pipeline (ALPHA_VANTAGE_API_KEY Actions secret)."
+  type        = string
+  sensitive   = true
+}
