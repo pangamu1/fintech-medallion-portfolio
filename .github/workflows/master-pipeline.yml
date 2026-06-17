@@ -57,6 +57,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         job: ${{ fromJSON(vars.BRONZE_JOB_IDS) }}
     steps:
@@ -97,6 +98,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         pipeline: ${{ fromJSON(vars.SILVER_SOURCE_PIPELINE_IDS) }}
     steps:
