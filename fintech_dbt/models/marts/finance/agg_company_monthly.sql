@@ -17,11 +17,11 @@ with daily as (
 )
 
 select
-    company_key,
+    max_by(company_key, price_date)                 as company_key,
     symbol,
-    sector,
+    max_by(sector, price_date)                      as sector,
     cast(date_format(price_date, 'yyyyMM') as int)  as year_month,
-    trunc(price_date, 'MM')                         as month_start_date,
+    min(trunc(price_date, 'MM'))                    as month_start_date,
     min_by(open_price, price_date)                  as monthly_open,
     max(high_price)                                 as monthly_high,
     min(low_price)                                  as monthly_low,
@@ -31,4 +31,4 @@ select
     avg(close_price)                                as avg_close,
     count(*)                                        as trading_days
 from daily
-group by company_key, symbol, sector, year_month, month_start_date
+group by symbol, year_month
