@@ -24,6 +24,7 @@ def profile_latest():
 VOLATILE_AND_METADATA = [
     "price", "change", "changePercentage", "volume", "averageVolume",
     "marketCap", "beta", "lastDividend", "range",
+    "description",
     "_source", "_endpoint", "_ticker", "_batch_date",
     "_ingest_timestamp", "_source_file", "_loaded_at",
     "_rescued_data",
