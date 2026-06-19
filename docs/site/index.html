@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FinTech Medallion Data Platform — Architecture</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#131a28; --zone:#0e1422; --ink:#e6edf3; --muted:#8b97a7;
+    --line:#26304199; --teal:#2dd4bf; --edge:#3f4f63; --control:#fb923c; --indigo:#818cf8;
+    --slate:#9aa6b6; --plat:#e8743b; --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1300px;margin:0 auto;padding:40px 20px 64px}
+  header h1{font-size:26px;font-weight:600;margin:0 0 6px;letter-spacing:-0.01em}
+  header h1 .pill{background:var(--teal);color:#06241f;padding:2px 12px;border-radius:8px}
+  header p{color:var(--muted);margin:0 0 8px;font-size:15px;max-width:840px}
+  header .story{color:#aeb9c7;font-size:13.5px;margin:0 0 20px}
+  header .story b{color:var(--ink);font-weight:600}
+  .legend{display:flex;flex-wrap:wrap;gap:18px;margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .legend i{width:22px;height:0;border-top-width:2.5px;border-top-style:solid;display:inline-block}
+  .legend .dash{border-top-style:dashed}
+  svg{width:100%;height:auto;display:block}
+  .stage{cursor:pointer;transition:opacity .18s ease}
+  .stages:hover .stage:not(:hover){opacity:.36}
+  .stage rect{transition:stroke .18s ease,stroke-width .18s ease}
+  .stage:hover rect.card{stroke:var(--teal);stroke-width:2}
+  .stage:focus{outline:none}
+  .stage:focus rect.card{stroke:var(--teal);stroke-width:2.4}
+  .zone{fill:var(--zone);stroke:var(--line);stroke-width:1;stroke-dasharray:4 5}
+  .platform{fill:#0f0c08;stroke:#e8743b7a;stroke-width:1.5}
+  .ctrlbar{fill:#191307;stroke:#fb923c4d;stroke-width:1}
+  .foundbar{fill:#0d1117;stroke:#2a3445;stroke-width:1}
+  .subpanel{fill:#0f1420;stroke:#2a3445;stroke-width:1;stroke-dasharray:3 3}
+  .card{fill:var(--panel);stroke:var(--edge);stroke-width:1.2}
+  .zlabel{fill:var(--muted);font-size:12.5px;font-weight:500}
+  .platlabel{fill:#f0a47a;font-size:12.5px;font-weight:600;letter-spacing:.02em}
+  .ct{fill:var(--ink);font-size:15px;font-weight:600}
+  .cs{fill:var(--muted);font-size:11px}
+  .nt{fill:var(--ink);font-size:12.5px;font-weight:500}
+  .sub{fill:#9fb0c3;font-size:11px;font-weight:500}
+  .band{font-size:11.5px;font-weight:500}
+  .pers{fill:var(--muted);font-size:11.5px;font-weight:500}
+  text{font-family:var(--font)}
+  @keyframes dash{to{stroke-dashoffset:-18}}
+  .flow{stroke-dasharray:4 5;animation:dash .85s linear infinite}
+  @media (prefers-reduced-motion:reduce){.flow{animation:none}}
+  .detail{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;min-height:120px}
+  .detail .hint{color:var(--muted);font-size:14px}
+  .detail h2{font-size:17px;margin:0 0 4px;font-weight:600}
+  .detail .role{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .detail .grid{display:grid;grid-template-columns:120px 1fr;gap:6px 16px;font-size:14px}
+  .detail .k{color:var(--muted)}
+  .detail a{color:var(--teal)}
+  footer{margin-top:30px;color:var(--muted);font-size:12px;max-width:840px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>The <span class="pill">medallion</span> data platform</h1>
+    <p>An end-to-end stock-market data platform built entirely on free tiers — how raw market data becomes
+       something the business can trust and act on.</p>
+    <p class="story">Follow the data, top-left to bottom-right:
+       <b>sources</b> → <b>ingest</b> → it sinks and refines through <b>Bronze → Silver → Gold</b> inside the
+       lakehouse → then serves out to the <b>dashboards</b>. Hover to isolate a stage, click any node for the detail and decision behind it.</p>
+  </header>
+
+  <div class="legend">
+    <span><i style="border-color:var(--teal)"></i> data flow</span>
+    <span><i class="dash" style="border-color:var(--control)"></i> orchestration (drives each stage, weekly)</span>
+    <span><i class="dash" style="border-color:var(--indigo)"></i> cross-validation (Alpha Vantage bypasses Bronze)</span>
+    <span><i class="dash" style="border-color:var(--slate)"></i> consumption</span>
+  </div>
+
+  <svg viewBox="0 0 1300 786" role="img" aria-labelledby="svgtitle svgdesc">
+    <title id="svgtitle">FinTech medallion data platform architecture</title>
+    <desc id="svgdesc">Data sources at the top-left feed Python ingestion, which lands data into a Databricks lakehouse. Inside the lakehouse the data sinks and refines down a vertical column of Bronze, Silver and Gold layers, governed by a GitHub Actions orchestration bar across the top and resting on a foundation of Unity Catalog, Delta Lake and Terraform across the bottom. A cross-validation path routes Alpha Vantage around the outside into silver.dq. Gold produces marts that flow out to a Google Sheets serving layer, Tableau dashboards and analysts at the lower-right.</desc>
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+
+    <!-- ============ cross-validation: Alpha Vantage loops around the outside into silver.dq (never crosses a block) ============ -->
+    <path class="flow" d="M60 184 L28 184 L28 26 L980 26 L980 348 L946 348" fill="none" stroke="var(--indigo)" stroke-width="1.6" marker-end="url(#ah)"/>
+
+    <!-- ============ the lakehouse platform (centerpiece) ============ -->
+    <rect class="platform" x="432" y="64" width="528" height="646" rx="16"/>
+    <image href="logos/databricks.png" x="448" y="76" width="17" height="17"/>
+    <text class="platlabel" x="472" y="89">Medallion lakehouse — Databricks Free Edition</text>
+
+    <!-- orchestration bar (top, control plane) -->
+    <g class="stage" tabindex="0" role="button" aria-label="GitHub Actions orchestration" onclick="show('orchestrator')" onkeydown="k(event,'orchestrator')">
+      <rect class="card ctrlbar" x="452" y="104" width="488" height="42" rx="9"/>
+      <image href="logos/github-white.png" x="466" y="114" width="21" height="21"/>
+      <text class="band" x="498" y="130" fill="var(--control)">Orchestration — GitHub Actions · weekly, Mondays 06:00 UTC</text>
+    </g>
+
+    <!-- orchestration drives each stage (control gutter, left of the column) -->
+    <g stroke="var(--control)" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.5" fill="none">
+      <path d="M474 146 L474 472"/>
+      <path d="M474 224 L520 224" marker-end="url(#ah)"/>
+      <path d="M474 348 L520 348" marker-end="url(#ah)"/>
+      <path d="M474 472 L520 472" marker-end="url(#ah)"/>
+    </g>
+
+    <!-- ============ vertical medallion: data sinks & refines ============ -->
+    <g class="stages">
+      <g class="stage" tabindex="0" role="button" aria-label="Bronze" onclick="show('bronze')" onkeydown="k(event,'bronze')">
+        <rect class="card" x="520" y="182" width="300" height="84" rx="12"/>
+        <image href="logos/databricks.png" x="557" y="209" width="30" height="30"/>
+        <text class="ct" x="608" y="220">Bronze</text>
+        <text class="cs" x="608" y="239">Autoloader · raw, append-only Delta</text>
+      </g>
+      <g class="stage" tabindex="0" role="button" aria-label="Silver" onclick="show('silver')" onkeydown="k(event,'silver')">
+        <rect class="card" x="520" y="306" width="300" height="84" rx="12"/>
+        <image href="logos/databricks.png" x="557" y="333" width="30" height="30"/>
+        <text class="ct" x="608" y="344">Silver</text>
+        <text class="cs" x="608" y="363">Delta Live Tables · CDC · SCD2 history</text>
+      </g>
+      <g class="stage" tabindex="0" role="button" aria-label="Gold" onclick="show('gold')" onkeydown="k(event,'gold')">
+        <rect class="card" x="520" y="430" width="300" height="84" rx="12"/>
+        <image href="logos/dbt-logo-w.png" x="546" y="462" width="52" height="20" preserveAspectRatio="xMidYMid meet"/>
+        <text class="ct" x="608" y="468">Gold</text>
+        <text class="cs" x="608" y="487">dbt star schema · surrogate keys</text>
+      </g>
+      <!-- gold.marts (the output table set) -->
+      <g class="stage" tabindex="0" role="button" aria-label="Gold marts" onclick="show('gold')" onkeydown="k(event,'gold')">
+        <rect class="card" x="520" y="544" width="300" height="50" rx="10"/>
+        <g transform="translate(540,557)" stroke="#7c8696" stroke-width="1.1" fill="none">
+          <rect x="0" y="0" width="22" height="16" rx="1.5"/><line x1="0" y1="5.3" x2="22" y2="5.3"/><line x1="0" y1="10.6" x2="22" y2="10.6"/><line x1="7.3" y1="0" x2="7.3" y2="16"/><line x1="14.6" y1="0" x2="14.6" y2="16"/>
+        </g>
+        <text class="nt" x="574" y="567">gold.marts</text>
+        <text class="cs" x="574" y="583">3 dims · 7 facts · 2 aggregates</text>
+      </g>
+      <!-- silver.dq cross-check (offset right of Silver) -->
+      <g class="stage" tabindex="0" role="button" aria-label="silver dq data quality" onclick="show('dq')" onkeydown="k(event,'dq')">
+        <rect class="card" x="846" y="318" width="96" height="60" rx="10" stroke="var(--indigo)" stroke-dasharray="4 4"/>
+        <text class="nt" x="894" y="344" text-anchor="middle" style="fill:#aab6c6">silver.dq</text>
+        <text class="cs" x="894" y="361" text-anchor="middle">cross-check</text>
+      </g>
+    </g>
+
+    <!-- foundation bar (bottom, the bedrock) -->
+    <rect class="foundbar" x="452" y="624" width="488" height="58" rx="9"/>
+    <text class="zlabel" x="464" y="618" style="font-size:11px">Foundation — provisioned as code, runs under every stage</text>
+    <g class="stage" tabindex="0" role="button" aria-label="Unity Catalog" onclick="show('unity')" onkeydown="k(event,'unity')">
+      <rect class="subpanel" x="462" y="632" width="156" height="42" rx="7"/>
+      <image href="logos/unity-catalog.png" x="470" y="639" width="140" height="28" preserveAspectRatio="xMinYMid meet"/>
+    </g>
+    <g class="stage" tabindex="0" role="button" aria-label="Delta Lake" onclick="show('delta')" onkeydown="k(event,'delta')">
+      <rect class="subpanel" x="628" y="632" width="150" height="42" rx="7"/>
+      <image href="logos/delta-lake.webp" x="640" y="641" width="24" height="24" preserveAspectRatio="xMidYMid meet"/>
+      <text class="sub" x="672" y="657">Delta Lake</text>
+    </g>
+    <g class="stage" tabindex="0" role="button" aria-label="Terraform" onclick="show('terraform')" onkeydown="k(event,'terraform')">
+      <rect class="subpanel" x="788" y="632" width="142" height="42" rx="7"/>
+      <image href="logos/terraform.png" x="800" y="641" width="24" height="24" preserveAspectRatio="xMidYMid meet"/>
+      <text class="sub" x="832" y="657">Terraform</text>
+    </g>
+
+    <!-- ============ data sources (top-left) ============ -->
+    <text class="zlabel" x="60" y="84">Data sources</text>
+    <g class="stages">
+      <g class="stage" tabindex="0" role="button" aria-label="FMP" onclick="show('fmp')" onkeydown="k(event,'fmp')">
+        <rect class="card" x="60" y="94" width="184" height="52" rx="10"/>
+        <text class="ct" x="78" y="118" style="font-size:14px">FMP</text>
+        <text class="cs" x="78" y="135">REST API · primary feed</text>
+      </g>
+      <g class="stage" tabindex="0" role="button" aria-label="Alpha Vantage" onclick="show('av')" onkeydown="k(event,'av')">
+        <rect class="card" x="60" y="158" width="184" height="52" rx="10"/>
+        <text class="ct" x="78" y="182" style="font-size:14px">Alpha Vantage</text>
+        <text class="cs" x="78" y="199">REST API · cross-check</text>
+      </g>
+      <g class="stage" tabindex="0" role="button" aria-label="SEC EDGAR" onclick="show('sec')" onkeydown="k(event,'sec')">
+        <rect class="card" x="60" y="222" width="184" height="52" rx="10"/>
+        <text class="ct" x="78" y="246" style="font-size:14px">SEC EDGAR</text>
+        <text class="cs" x="78" y="263">keyless API · Form 4 XML</text>
+      </g>
+
+      <!-- ingest -->
+      <g class="stage" tabindex="0" role="button" aria-label="Ingest" onclick="show('ingest')" onkeydown="k(event,'ingest')">
+        <rect class="card" x="250" y="300" width="158" height="82" rx="12" stroke="#5a86b8"/>
+        <image href="logos/python.png" x="268" y="328" width="26" height="26"/>
+        <text class="ct" x="306" y="336">Ingest</text>
+        <text class="cs" x="306" y="355">Python · uv · atomic JSON</text>
+      </g>
+    </g>
+
+    <!-- ============ serving & consumption (lower-right, off the spine) ============ -->
+    <rect class="zone" x="1000" y="470" width="248" height="300" rx="12"/>
+    <text class="zlabel" x="1014" y="492">Serving &amp; consumption</text>
+    <g class="stages">
+      <g class="stage" tabindex="0" role="button" aria-label="Serving" onclick="show('serving')" onkeydown="k(event,'serving')">
+        <rect class="card" x="1012" y="533" width="224" height="64" rx="11" stroke="#3aa884"/>
+        <image href="logos/google-sheets.svg" x="1030" y="554" width="22" height="22"/>
+        <text class="ct" x="1066" y="560">Serving</text>
+        <text class="cs" x="1066" y="578">Sheets reverse-ETL</text>
+      </g>
+      <g class="stage" tabindex="0" role="button" aria-label="BI" onclick="show('bi')" onkeydown="k(event,'bi')">
+        <rect class="card" x="1012" y="629" width="224" height="76" rx="11" stroke="#8b5cf6"/>
+        <image href="logos/tableau.png" x="1060" y="645" width="116" height="26" preserveAspectRatio="xMidYMid meet"/>
+        <text class="cs" x="1124" y="691" text-anchor="middle">BI · Tableau Public</text>
+      </g>
+    </g>
+    <text class="pers" x="1024" y="752">Analysts &amp; reviewers</text>
+    <text class="pers" x="1024" y="767" style="fill:#5f6b7a">public dashboards</text>
+
+    <!-- ============ flows ============ -->
+    <!-- sources -> ingest (three feeds combine into one squared trunk) -->
+    <g fill="none" stroke="var(--teal)" stroke-width="1.8">
+      <path class="flow" d="M244 120 L329 120"/>
+      <path class="flow" d="M244 184 L329 184"/>
+      <path class="flow" d="M244 248 L329 248"/>
+      <path class="flow" d="M329 120 L329 300" stroke-width="2" marker-end="url(#ah)"/>
+    </g>
+    <!-- ingest -> Bronze (squared, into the lakehouse) -->
+    <path class="flow" d="M408 330 L496 330 L496 245 L520 245" fill="none" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah)"/>
+    <!-- vertical refinement: Bronze -> Silver -> Gold -> marts -->
+    <g stroke="var(--teal)" stroke-width="2" fill="none">
+      <line class="flow" x1="670" y1="266" x2="670" y2="304" marker-end="url(#ah)"/>
+      <line class="flow" x1="670" y1="390" x2="670" y2="428" marker-end="url(#ah)"/>
+      <line class="flow" x1="670" y1="514" x2="670" y2="542" marker-end="url(#ah)"/>
+    </g>
+    <!-- Silver <-> dq (relationship) -->
+    <line x1="820" y1="348" x2="846" y2="348" stroke="var(--indigo)" stroke-width="1.3" stroke-dasharray="4 4"/>
+    <!-- marts -> serving (straight horizontal, out to the right shelf) -->
+    <line class="flow" x1="820" y1="569" x2="1010" y2="569" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah)"/>
+    <!-- serving -> BI -->
+    <line class="flow" x1="1124" y1="597" x2="1124" y2="627" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah)"/>
+    <!-- BI -> analysts (consumption) -->
+    <line class="flow" x1="1124" y1="705" x2="1124" y2="735" stroke="var(--slate)" stroke-width="1.6" marker-end="url(#ah)"/>
+  </svg>
+
+  <div class="detail" id="detail">
+    <p class="hint">Click any node above to see the tools, what it produces, and the decision behind it.</p>
+  </div>
+
+  <footer>
+    Product names and logos are trademarks of their respective owners, shown to identify the tools this
+    project integrates with. This project is independent and not affiliated with or endorsed by them.
+  </footer>
+</div>
+
+<script>
+  var DATA = {
+    fmp:{t:"FMP — Financial Modeling Prep",role:"Primary market-data source",tools:"REST API",
+      produces:"Prices, fundamentals, corporate actions",note:"The primary feed. 250 calls/day; an 85-ticker allowlist on most per-symbol endpoints.",adr:"docs/adr/0009-alpha-vantage-downgrade-fmp-primary-prices.md"},
+    av:{t:"Alpha Vantage",role:"Cross-validation price feed",tools:"REST API",
+      produces:"A second daily price series",note:"Used only to cross-check FMP at Silver, not as a primary source. 25 calls/day, compact 100-day window. It bypasses Bronze and lands straight in silver.dq.",adr:"docs/adr/0019-alpha-vantage-deferred-from-bronze.md"},
+    sec:{t:"SEC EDGAR",role:"Insider-trading filings",tools:"Keyless REST + XML",
+      produces:"Form 4 insider transactions",note:"Multi-hop keyless API; Form 4 XML is parsed to normalized JSON at ingest time.",adr:"docs/adr/0024-sec-edgar-form4-ingestion.md"},
+    ingest:{t:"Ingest",role:"Python ingestion into a local lake",tools:"Python, uv, requests",
+      produces:"Atomic JSON, then UC volumes",note:"Atomic writes plus a JSONL audit log; the local lake is the staging ground before Bronze.",adr:"docs/adr/0007-bronze-ingestion-durability-atomic-writes-jsonl-logs.md"},
+    bronze:{t:"Bronze",role:"Raw, append-only landing",tools:"Databricks Autoloader, Delta",
+      produces:"bronze.fmp.*, bronze.sec.*",note:"Autoloader with rescue-mode schema evolution, so an unexpected field never breaks a load.",adr:"docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md"},
+    silver:{t:"Silver",role:"Cleansing, history, data quality",tools:"Databricks Delta Live Tables",
+      produces:"SCD2 company dim, event tables, silver.dq",note:"Silver owns CDC and SCD2, not dbt. A separate dq schema reconciles the two price feeds.",adr:"docs/adr/0002-medallion-layer-ownership.md"},
+    gold:{t:"Gold",role:"Kimball star schema",tools:"dbt Cloud",
+      produces:"gold.marts — 3 dims, 7 facts, 2 aggregates",note:"Surrogate keys and a point-in-time join attach each fact to the company version current on the event date.",adr:"docs/adr/0013-gold-star-schema.md"},
+    dq:{t:"silver.dq — data quality",role:"Cross-source observability",tools:"Databricks DLT",
+      produces:"price_cross_validation, coverage_audit",note:"Reconciles the FMP and Alpha Vantage price series and audits per-ticker coverage; the only place the two feeds meet.",adr:"docs/adr/0020-silver-dq-observability-schema.md"},
+    serving:{t:"Serving",role:"Reverse-ETL serving layer",tools:"databricks-sql-connector, gspread",
+      produces:"One Google Sheet tab per Gold mart",note:"Tableau Public has no Databricks connector on the free tier, so a Sheet is the bridge.",adr:"docs/adr/0025-bi-tableau-via-sheets-serving-layer.md"},
+    bi:{t:"BI",role:"Public dashboards",tools:"Tableau Public",
+      produces:"A four-dashboard analytics suite",note:"Reads the Sheet as a weekly-refreshed extract, not a live warehouse connection.",adr:"docs/adr/0025-bi-tableau-via-sheets-serving-layer.md"},
+    orchestrator:{t:"GitHub Actions control plane",role:"Scheduled orchestration",tools:"GitHub Actions",
+      produces:"One weekly end-to-end run",note:"master-pipeline.yml chains the stages via job needs:, hard-halting on failure; fan-out runs max-parallel:1 because Free-Edition serverless is ~1-concurrent.",adr:"docs/adr/0026-unified-gha-orchestrator.md"},
+    unity:{t:"Unity Catalog",role:"Governance & metadata",tools:"Databricks Unity Catalog",
+      produces:"Catalogs, schemas, volumes, grants",note:"One governance layer over Bronze, Silver and Gold; every object is Terraform-managed.",adr:"docs/adr/0016-free-edition-default-storage-workaround.md"},
+    delta:{t:"Delta Lake",role:"Open table storage",tools:"Delta Lake on Databricks",
+      produces:"ACID Delta tables",note:"Every medallion layer is a Delta table; the open storage format the whole lakehouse rests on.",adr:"docs/adr/0018-bronze-pyspark-autoloader-supersedes-copy-into.md"},
+    terraform:{t:"Terraform (HCP)",role:"Infrastructure as code",tools:"Terraform, HCP Terraform Free",
+      produces:"Databricks + GitHub resources",note:"Provisions the Unity Catalog objects, jobs, pipelines and GitHub repo settings; state lives in HCP Terraform Free.",adr:"docs/adr/0014-terraform-for-iac.md"}
+  };
+  function show(id){
+    var d=DATA[id];if(!d)return;
+    document.getElementById('detail').innerHTML=
+      '<h2>'+d.t+'</h2><p class="role">'+d.role+'</p><div class="grid">'+
+      '<span class="k">Tools</span><span>'+d.tools+'</span>'+
+      '<span class="k">Produces</span><span>'+d.produces+'</span>'+
+      '<span class="k">Why</span><span>'+d.note+'</span>'+
+      '<span class="k">Decision</span><span><a href="https://github.com/pangamu1/fintech-medallion-portfolio/blob/main/'+d.adr+'">read the ADR</a></span></div>';
+  }
+  function k(e,id){if(e.key==='Enter'||e.key===' '){e.preventDefault();show(id);}}
+</script>
+</body>
+</html>
