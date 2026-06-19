@@ -1,0 +1,80 @@
+name: Pages — architecture map + dbt docs
+
+# Sole deployer for the GitHub Pages site.
+#   /            -> the interactive architecture map (docs/site/index.html + logos)
+#   /dbt-docs/   -> the dbt-generated lineage docs (fetched from the last good prod run)
+#
+# Pages replaces the WHOLE site on every deploy, so this job always assembles both halves.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/site/**'          # the map or its assets changed
+  workflow_run:
+    workflows: ["CD — prod build"]   # after prod.yml finishes a dbt build -> redeploy with fresh docs
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  DBT_CLOUD_HOST: hf168.us1.dbt.com
+  DBT_CLOUD_ACCOUNT_ID: "70506183132386"
+  DBT_CLOUD_JOB_ID: "70506183132667"
+
+jobs:
+  build-and-deploy:
+    name: Assemble + deploy site
+    runs-on: ubuntu-latest
+    # when triggered by prod.yml, only deploy if that build actually succeeded
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch latest successful dbt docs
+        env:
+          DBT_CLOUD_API_TOKEN: ${{ secrets.DBT_CLOUD_API_TOKEN }}
+        run: |
+          # newest runs for the prod job, then pick the most recent successful one (status 10)
+          run_id=$(curl -fsS \
+            "https://${DBT_CLOUD_HOST}/api/v2/accounts/${DBT_CLOUD_ACCOUNT_ID}/runs/?job_definition_id=${DBT_CLOUD_JOB_ID}&order_by=-id&limit=25" \
+            -H "Authorization: Token ${DBT_CLOUD_API_TOKEN}" \
+            | jq -r '[.data[] | select(.status == 10)][0].id')
+          if [ -z "$run_id" ] || [ "$run_id" = "null" ]; then
+            echo "::error::no successful prod run with docs artifacts found"; exit 1
+          fi
+          echo "Using dbt docs from run ${run_id}"
+          mkdir -p _site/dbt-docs
+          for f in manifest.json catalog.json index.html; do
+            curl -fsS \
+              "https://${DBT_CLOUD_HOST}/api/v2/accounts/${DBT_CLOUD_ACCOUNT_ID}/runs/${run_id}/artifacts/${f}" \
+              -H "Authorization: Token ${DBT_CLOUD_API_TOKEN}" \
+              -o "_site/dbt-docs/${f}"
+            echo "  dbt-docs/${f} ($(wc -c < _site/dbt-docs/${f}) bytes)"
+          done
+
+      - name: Assemble site (map at root, dbt docs under /dbt-docs/)
+        run: |
+          cp -r docs/site/index.html docs/site/logos _site/
+          find _site -name '.DS_Store' -delete
+          echo "site tree:"; find _site -maxdepth 2 -type f | sort
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
