@@ -6,17 +6,17 @@
 <title>FinTech Medallion Data Platform — Architecture</title>
 <style>
   :root{
-    --bg:#0b0e14; --panel:#131a28; --zone:#0e1422; --ink:#e6edf3; --muted:#8b97a7;
-    --line:#26304199; --teal:#2dd4bf; --edge:#3f4f63; --control:#fb923c; --indigo:#818cf8;
+    --bg:#0b0e14; --panel:#171f2f; --zone:#0e1422; --ink:#e6edf3; --muted:#97a3b4;
+    --line:#26304199; --teal:#2dd4bf; --edge:#4a5c72; --control:#fb923c; --indigo:#818cf8;
     --slate:#9aa6b6; --plat:#e8743b; --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:1300px;margin:0 auto;padding:40px 20px 64px}
+  .wrap{max-width:1440px;margin:0 auto;padding:40px 20px 32px}
   header h1{font-size:26px;font-weight:600;margin:0 0 6px;letter-spacing:-0.01em}
   header h1 .pill{background:var(--teal);color:#06241f;padding:2px 12px;border-radius:8px}
   header p{color:var(--muted);margin:0 0 8px;font-size:15px;max-width:840px}
-  header .story{color:#aeb9c7;font-size:13.5px;margin:0 0 20px}
+  header .story{color:#aeb9c7;font-size:14.5px;margin:0 0 20px}
   header .story b{color:var(--ink);font-weight:600}
   .legend{display:flex;flex-wrap:wrap;gap:18px;margin:0 0 14px;font-size:13px;color:var(--muted)}
   .legend span{display:inline-flex;align-items:center;gap:7px}
@@ -35,26 +35,26 @@
   .foundbar{fill:#0d1117;stroke:#2a3445;stroke-width:1}
   .subpanel{fill:#0f1420;stroke:#2a3445;stroke-width:1;stroke-dasharray:3 3}
   .card{fill:var(--panel);stroke:var(--edge);stroke-width:1.2}
-  .zlabel{fill:var(--muted);font-size:12.5px;font-weight:500}
-  .platlabel{fill:#f0a47a;font-size:12.5px;font-weight:600;letter-spacing:.02em}
-  .ct{fill:var(--ink);font-size:15px;font-weight:600}
-  .cs{fill:var(--muted);font-size:11px}
-  .nt{fill:var(--ink);font-size:12.5px;font-weight:500}
-  .sub{fill:#9fb0c3;font-size:11px;font-weight:500}
-  .band{font-size:11.5px;font-weight:500}
-  .pers{fill:var(--muted);font-size:11.5px;font-weight:500}
+  .zlabel{fill:var(--muted);font-size:13.5px;font-weight:500}
+  .platlabel{fill:#f0a47a;font-size:13.5px;font-weight:600;letter-spacing:.02em}
+  .ct{fill:var(--ink);font-size:16px;font-weight:600}
+  .cs{fill:var(--muted);font-size:12px}
+  .nt{fill:var(--ink);font-size:13.5px;font-weight:500}
+  .sub{fill:#9fb0c3;font-size:12px;font-weight:500}
+  .band{font-size:12.5px;font-weight:500}
+  .pers{fill:var(--muted);font-size:12.5px;font-weight:500}
   text{font-family:var(--font)}
   @keyframes dash{to{stroke-dashoffset:-18}}
   .flow{stroke-dasharray:4 5;animation:dash .85s linear infinite}
   @media (prefers-reduced-motion:reduce){.flow{animation:none}}
-  .detail{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;min-height:120px}
+  .detail{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 22px;min-height:84px}
   .detail .hint{color:var(--muted);font-size:14px}
   .detail h2{font-size:17px;margin:0 0 4px;font-weight:600}
   .detail .role{color:var(--muted);font-size:13px;margin:0 0 12px}
   .detail .grid{display:grid;grid-template-columns:120px 1fr;gap:6px 16px;font-size:14px}
   .detail .k{color:var(--muted)}
   .detail a{color:var(--teal)}
-  footer{margin-top:30px;color:var(--muted);font-size:12px;max-width:840px}
+  footer{margin-top:20px;color:var(--muted);font-size:12px;max-width:840px}
 </style>
 </head>
 <body>
@@ -79,13 +79,17 @@
     <title id="svgtitle">FinTech medallion data platform architecture</title>
     <desc id="svgdesc">Data sources at the top-left feed Python ingestion, which lands data into a Databricks lakehouse. Inside the lakehouse the data sinks and refines down a vertical column of Bronze, Silver and Gold layers, governed by a GitHub Actions orchestration bar across the top and resting on a foundation of Unity Catalog, Delta Lake and Terraform across the bottom. A cross-validation path routes Alpha Vantage around the outside into silver.dq. Gold produces marts that flow out to a Google Sheets serving layer, Tableau dashboards and analysts at the lower-right.</desc>
     <defs>
-      <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </marker>
+      <!-- per-colour arrowheads (filled, so they render everywhere; context-stroke was unreliable) -->
+      <marker id="ah-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1.5 1.5 L9 5 L1.5 8.5 Z" fill="#2dd4bf"/></marker>
+      <marker id="ah-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1.5 1.5 L9 5 L1.5 8.5 Z" fill="#fb923c"/></marker>
+      <marker id="ah-indigo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1.5 1.5 L9 5 L1.5 8.5 Z" fill="#818cf8"/></marker>
+      <marker id="ah-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1.5 1.5 L9 5 L1.5 8.5 Z" fill="#9aa6b6"/></marker>
+      <!-- crop the Unity Catalog lockup's transparent padding so the mark fills its panel -->
+      <clipPath id="uc-clip"><rect x="466" y="634" width="148" height="38" rx="7"/></clipPath>
     </defs>
 
     <!-- ============ cross-validation: Alpha Vantage loops around the outside into silver.dq (never crosses a block) ============ -->
-    <path class="flow" d="M60 184 L28 184 L28 26 L980 26 L980 348 L946 348" fill="none" stroke="var(--indigo)" stroke-width="1.6" marker-end="url(#ah)"/>
+    <path class="flow" d="M60 184 L28 184 L28 26 L980 26 L980 348 L946 348" fill="none" stroke="var(--indigo)" stroke-width="1.6" marker-end="url(#ah-indigo)"/>
 
     <!-- ============ the lakehouse platform (centerpiece) ============ -->
     <rect class="platform" x="432" y="64" width="528" height="646" rx="16"/>
@@ -102,9 +106,9 @@
     <!-- orchestration drives each stage (control gutter, left of the column) -->
     <g stroke="var(--control)" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.5" fill="none">
       <path d="M474 146 L474 472"/>
-      <path d="M474 224 L520 224" marker-end="url(#ah)"/>
-      <path d="M474 348 L520 348" marker-end="url(#ah)"/>
-      <path d="M474 472 L520 472" marker-end="url(#ah)"/>
+      <path d="M474 224 L520 224" marker-end="url(#ah-orange)"/>
+      <path d="M474 348 L520 348" marker-end="url(#ah-orange)"/>
+      <path d="M474 472 L520 472" marker-end="url(#ah-orange)"/>
     </g>
 
     <!-- ============ vertical medallion: data sinks & refines ============ -->
@@ -119,7 +123,7 @@
         <rect class="card" x="520" y="306" width="300" height="84" rx="12"/>
         <image href="logos/databricks.png" x="557" y="333" width="30" height="30"/>
         <text class="ct" x="608" y="344">Silver</text>
-        <text class="cs" x="608" y="363">Delta Live Tables · CDC · SCD2 history</text>
+        <text class="cs" x="608" y="363">Delta Live Tables · CDC · SCD2</text>
       </g>
       <g class="stage" tabindex="0" role="button" aria-label="Gold" onclick="show('gold')" onkeydown="k(event,'gold')">
         <rect class="card" x="520" y="430" width="300" height="84" rx="12"/>
@@ -146,10 +150,10 @@
 
     <!-- foundation bar (bottom, the bedrock) -->
     <rect class="foundbar" x="452" y="624" width="488" height="58" rx="9"/>
-    <text class="zlabel" x="464" y="618" style="font-size:11px">Foundation — provisioned as code, runs under every stage</text>
+    <text class="zlabel" x="464" y="618" style="font-size:12px">Foundation — provisioned as code, runs under every stage</text>
     <g class="stage" tabindex="0" role="button" aria-label="Unity Catalog" onclick="show('unity')" onkeydown="k(event,'unity')">
       <rect class="subpanel" x="462" y="632" width="156" height="42" rx="7"/>
-      <image href="logos/unity-catalog.png" x="470" y="639" width="140" height="28" preserveAspectRatio="xMinYMid meet"/>
+      <image href="logos/unity-catalog.png" x="427" y="593" width="226" height="117" clip-path="url(#uc-clip)"/>
     </g>
     <g class="stage" tabindex="0" role="button" aria-label="Delta Lake" onclick="show('delta')" onkeydown="k(event,'delta')">
       <rect class="subpanel" x="628" y="632" width="150" height="42" rx="7"/>
@@ -167,26 +171,26 @@
     <g class="stages">
       <g class="stage" tabindex="0" role="button" aria-label="FMP" onclick="show('fmp')" onkeydown="k(event,'fmp')">
         <rect class="card" x="60" y="94" width="184" height="52" rx="10"/>
-        <text class="ct" x="78" y="118" style="font-size:14px">FMP</text>
+        <text class="ct" x="78" y="118" style="font-size:15px">FMP</text>
         <text class="cs" x="78" y="135">REST API · primary feed</text>
       </g>
       <g class="stage" tabindex="0" role="button" aria-label="Alpha Vantage" onclick="show('av')" onkeydown="k(event,'av')">
         <rect class="card" x="60" y="158" width="184" height="52" rx="10"/>
-        <text class="ct" x="78" y="182" style="font-size:14px">Alpha Vantage</text>
+        <text class="ct" x="78" y="182" style="font-size:15px">Alpha Vantage</text>
         <text class="cs" x="78" y="199">REST API · cross-check</text>
       </g>
       <g class="stage" tabindex="0" role="button" aria-label="SEC EDGAR" onclick="show('sec')" onkeydown="k(event,'sec')">
         <rect class="card" x="60" y="222" width="184" height="52" rx="10"/>
-        <text class="ct" x="78" y="246" style="font-size:14px">SEC EDGAR</text>
+        <text class="ct" x="78" y="246" style="font-size:15px">SEC EDGAR</text>
         <text class="cs" x="78" y="263">keyless API · Form 4 XML</text>
       </g>
 
       <!-- ingest -->
       <g class="stage" tabindex="0" role="button" aria-label="Ingest" onclick="show('ingest')" onkeydown="k(event,'ingest')">
-        <rect class="card" x="250" y="300" width="158" height="82" rx="12" stroke="#5a86b8"/>
-        <image href="logos/python.png" x="268" y="328" width="26" height="26"/>
-        <text class="ct" x="306" y="336">Ingest</text>
-        <text class="cs" x="306" y="355">Python · uv · atomic JSON</text>
+        <rect class="card" x="250" y="300" width="172" height="82" rx="12" stroke="#5a86b8"/>
+        <image href="logos/python-logo-only.png" x="269" y="310" width="22" height="26" preserveAspectRatio="xMidYMid meet"/>
+        <text class="ct" x="300" y="330">Ingest</text>
+        <text class="cs" x="268" y="362">Python · uv · atomic JSON</text>
       </g>
     </g>
 
@@ -215,24 +219,24 @@
       <path class="flow" d="M244 120 L329 120"/>
       <path class="flow" d="M244 184 L329 184"/>
       <path class="flow" d="M244 248 L329 248"/>
-      <path class="flow" d="M329 120 L329 300" stroke-width="2" marker-end="url(#ah)"/>
+      <path class="flow" d="M329 120 L329 300" stroke-width="2" marker-end="url(#ah-teal)"/>
     </g>
     <!-- ingest -> Bronze (squared, into the lakehouse) -->
-    <path class="flow" d="M408 330 L496 330 L496 245 L520 245" fill="none" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah)"/>
+    <path class="flow" d="M422 330 L496 330 L496 245 L520 245" fill="none" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah-teal)"/>
     <!-- vertical refinement: Bronze -> Silver -> Gold -> marts -->
     <g stroke="var(--teal)" stroke-width="2" fill="none">
-      <line class="flow" x1="670" y1="266" x2="670" y2="304" marker-end="url(#ah)"/>
-      <line class="flow" x1="670" y1="390" x2="670" y2="428" marker-end="url(#ah)"/>
-      <line class="flow" x1="670" y1="514" x2="670" y2="542" marker-end="url(#ah)"/>
+      <line class="flow" x1="670" y1="266" x2="670" y2="304" marker-end="url(#ah-teal)"/>
+      <line class="flow" x1="670" y1="390" x2="670" y2="428" marker-end="url(#ah-teal)"/>
+      <line class="flow" x1="670" y1="514" x2="670" y2="542" marker-end="url(#ah-teal)"/>
     </g>
     <!-- Silver <-> dq (relationship) -->
     <line x1="820" y1="348" x2="846" y2="348" stroke="var(--indigo)" stroke-width="1.3" stroke-dasharray="4 4"/>
     <!-- marts -> serving (straight horizontal, out to the right shelf) -->
-    <line class="flow" x1="820" y1="569" x2="1010" y2="569" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah)"/>
+    <line class="flow" x1="820" y1="569" x2="1010" y2="569" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah-teal)"/>
     <!-- serving -> BI -->
-    <line class="flow" x1="1124" y1="597" x2="1124" y2="627" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah)"/>
+    <line class="flow" x1="1124" y1="597" x2="1124" y2="627" stroke="var(--teal)" stroke-width="2" marker-end="url(#ah-teal)"/>
     <!-- BI -> analysts (consumption) -->
-    <line class="flow" x1="1124" y1="705" x2="1124" y2="735" stroke="var(--slate)" stroke-width="1.6" marker-end="url(#ah)"/>
+    <line class="flow" x1="1124" y1="705" x2="1124" y2="735" stroke="var(--slate)" stroke-width="1.6" marker-end="url(#ah-slate)"/>
   </svg>
 
   <div class="detail" id="detail">
